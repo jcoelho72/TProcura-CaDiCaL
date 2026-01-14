@@ -1,0 +1,6 @@
+[submodule "cadical"]
+	path = cadical
+	url = https://github.com/arminbiere/cadical
+[submodule "TProcura"]
+	path = TProcura
+	url = https://github.com/jcoelho72/TProcura

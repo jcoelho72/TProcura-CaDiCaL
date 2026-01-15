@@ -270,8 +270,17 @@ enum EParametrosCaDiCaL {
 };
 
 enum EIndicadoresCaDiCaL {
-	IND_MEMORY = IND_PROCURA, ///< retorna a memória usada em MB
+	IND_MEMORY = IND_PROCURA,
+	IND_PROPAGATIONS,
+	IND_TICKS,
+	IND_RESTARTS,
+	IND_LEARNED,
+	IND_FIXED,
+	IND_MAXLEVEL,
+	IND_CADICAL,
+	IND_CONFLICTS = IND_ITERACOES
 };
+
 
 void CCaDiCaL::ResetParametros()
 {
@@ -600,8 +609,17 @@ void CCaDiCaL::ResetParametros()
 	for (int i = 0; i < parametro.Count(); i++)
 		defaultCadical[i] = parametro[i].valor;
 
-	indicador += { "IND_MEMORY", "maximum resident set size of process", IND_MEMORY };
-	indAtivo += IND_MEMORY;
+	indicador[IND_ITERACOES] = { "IND_CONFLICTS", "number of conflicts", IND_CONFLICTS };
+	indicador += {
+		{ "IND_MEMORY", "maximum resident set size of process", IND_MEMORY },
+		{ "IND_PROPAGATIONS", "number of literals propagated, by unit propagation", IND_PROPAGATIONS },
+		{ "IND_TICKS", "internal propagation-effort counter", IND_TICKS },
+		{ "IND_RESTARTS", "number of restart events during search", IND_RESTARTS },
+		{ "IND_LEARNED", "number of learned clauses", IND_LEARNED },
+		{ "IND_FIXED", "number of variables permanently fixed by simplification and unit propagation", IND_FIXED },
+		{ "IND_MAXLEVEL", "maximal decision level observed during search", IND_MAXLEVEL }
+	};
+	indAtivo += {IND_MEMORY, IND_PROPAGATIONS, IND_TICKS, IND_RESTARTS, IND_LEARNED, IND_FIXED, IND_MAXLEVEL};
 
 	instancia = { "Instance", 1,1,100000, "ID of the instance (appended to the file name)", NULL };
 }
@@ -617,31 +635,32 @@ int CCaDiCaL::ExecutaAlgoritmo()
 	// build options string, with just the non-default parameters
 	// special options with just one - and no space
 	for (auto i : { LOCAL_SEARCH, PREPROCESSING })
-		if (Parametro(i) != defaultCadical[i]) 
+		if (Parametro(i) != defaultCadical[i])
 			options.printf("-%s%d ", parametro[i].nome, Parametro(i));
 	// special options of just one -
 	TVector<int> aux;
 	aux += LIMITE_ITERACOES;
 	aux += LIMIT_DECISIONS;
 	for (auto i : aux)
-		if (Parametro(i) != defaultCadical[i]) 
+		if (Parametro(i) != defaultCadical[i])
 			options.printf("-%s %d ", parametro[i].nome, Parametro(i));
 	// options for non-default parameters with --
 	for (auto i : { SEMENTE })
-		if (Parametro(i) != defaultCadical[i]) 
+		if (Parametro(i) != defaultCadical[i])
 			options.printf("--%s=%d ", parametro[i].nome, Parametro(i));
 	// check if is used defined configurations
-	if (Parametro(DEFINED_CONFIGURATIONS) != defaultCadical[DEFINED_CONFIGURATIONS]) 
+	if (Parametro(DEFINED_CONFIGURATIONS) != defaultCadical[DEFINED_CONFIGURATIONS])
 		options.printf("--%s ", parametro[DEFINED_CONFIGURATIONS].nomeValores[Parametro(DEFINED_CONFIGURATIONS)]);
 	// add the rest of internal CaDiCaL parameters if used
 	for (int i = ARENA; i < PARAMETROS_CADICAL; i++)
-		if (Parametro(i) != defaultCadical[i]) 
+		if (Parametro(i) != defaultCadical[i])
 			options.printf("--%s=%d ", parametro[i].nome, Parametro(i));
 
 	// clean indicators
+	indicators.Count(indicador.Count());
 	indicators.Reset(0);
 	// setup all parameters that are not default in the launch line
-	cmdSTR.printf("cadical/build/cadical -t %d -w %s %s %s%d.cnf > %s",
+	cmdSTR.printf("./cadical/build/cadical -t %d -w %s %s %s%d.cnf > %s",
 		Parametro(LIMITE_TEMPO),
 		(const char*)solFile,
 		(const char*)options,
@@ -649,7 +668,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		(const char*)resultFile);
 
 	error = system(cmdSTR); // lauch CaDiCaL solver
-	if(error == -1)
+	if (error == -1)
 	{
 		printf("\nError launching CaDiCaL solver\nCommand line: %s", (const char*)cmdSTR);
 		return 0;
@@ -674,35 +693,66 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		// extract indicators from the last run
 		f = fopen(resultFile, "rt");
 		if (f != NULL) {
-			while(!feof(f)) {
-				char linha[1024];
+			bool inSolving = false;
+			int maxLevel = 0;
+			char linha[1024];
+			const char* marks[] = {
+				"c total real time since initialization:",
+				"c maximum resident set size of process:",
+				"c conflicts:",
+				"c propagations:",
+				"c ticks:",
+				"c restarts:",
+				"c learned:",
+				"c fixed:"
+			};
+			int indMarks[] = {
+				IND_TEMPO,
+				IND_MEMORY,
+				IND_CONFLICTS,
+				IND_PROPAGATIONS,
+				IND_TICKS,
+				IND_RESTARTS,
+				IND_LEARNED,
+				IND_FIXED,
+				IND_CADICAL
+			};
+			while (fgets(linha, sizeof(linha), f)) {
 				// Detect lines:
-				// c total real time since initialization:            0.01    seconds
-				// c maximum resident set size of process: 4.38    MB
-				if (fgets(linha, sizeof(linha), f) != NULL) {
-					//printf("%s", linha);
-					if (strstr(linha, "c total real time since initialization")) {
-						double tempo;
-						sscanf(linha, "c total real time since initialization: %lg seconds",&tempo);
-						indicators[IND_TEMPO] = (int)(tempo * 1000); // in milliseconds
+				for (int i = 0; indMarks[i] < IND_CADICAL; i++) {
+					if (strstr(linha, marks[i])) {
+						double valor = atof(linha + strlen(marks[i]) + 1);
+						if (indMarks[i] == IND_TEMPO)
+							valor *= 1000.0; // in milliseconds
+						indicators[indMarks[i]] = (int)(valor + 0.5);
 					}
-					else if (strstr(linha, "c maximum resident set size of process")) {
-						double memoria;
-						sscanf(linha, "c maximum resident set size of process: %lg MB", &memoria);
-						indicators[IND_MEMORY] = (int)memoria; // in MB
+				}
+				if (strstr(linha, "[ solving ]"))
+					inSolving = true;
+				else if (strstr(linha, "[ result ]"))
+					inSolving = false;
+
+				if (inSolving && linha[0] == 'c' && isdigit(linha[2])) {
+					double nums[32];
+					if (sscanf(linha, "c %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg",
+						nums, nums + 1, nums + 2, nums + 3, nums + 4, nums + 5, nums + 6,
+						nums + 7, nums + 8, nums + 9, nums + 10, nums + 11, nums + 12) == 13) {
+						if (nums[12] > maxLevel)
+							maxLevel = (int)(nums[12] + 0.5);
 					}
 				}
 			}
+			indicators[IND_MAXLEVEL] = maxLevel;
 			// process the file and extract indicators and solution
 			fclose(f);
 			remove(resultFile);
 		}
-		f=fopen(solFile, "rt");
-		if(f!=NULL) {
+		f = fopen(solFile, "rt");
+		if (f != NULL) {
 			// read solution
 			char linha[1024];
 			satSol = {};
-			while(!feof(f)) {
+			while (!feof(f)) {
 				if (fgets(linha, sizeof(linha), f) != NULL) {
 					//printf("%s", linha);
 					if (strstr(linha, "v ")) {

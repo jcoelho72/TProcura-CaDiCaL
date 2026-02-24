@@ -4,455 +4,173 @@
 #include <random>
 #include <iterator>
 
-enum EParametrosCaDiCaL {
-	LIMIT_DECISIONS = PARAMETROS_PROCURA,
-	LOCAL_SEARCH,
-	PREPROCESSING,
-	DEFINED_CONFIGURATIONS,
-	// all the rest of CaDiCaL parameters
-
-	ARENA,        // --arena = bool               allocate clauses in arena[true]
-	ARENACOMPACT, // --arenacompact = bool        keep clauses compact[true]
-	ARENASORT,    // --arenasort = bool           sort clauses in arena[true]
-	ARENATYPE,    // --arenatype = 1..3           1 = clause, 2 = var, 3 = queue[3]
-	BACKBONE,     // --backbone = 0..2            binary clause backbone[1]
-	BACKBONEEFFORT, // --backboneeffort = 0..1e5    binary effort in per mile[20]
-	BACKBONEMAXROUNDS, // --backbonemaxrounds = 0..1e5 backbone rounds limit[1e3]
-	BACKBONEROUNDS, // --backbonerounds = 0..1e5    backbone rounds limit[100]
-	BACKBONETHRESH, //--backbonethresh = 0..1e9    delay if ticks smaller thresh* clauses[5]
-	BINARY,       // --binary = bool              use binary proof format[true]
-	BLOCK,			// 	--block = bool               blocked clause elimination[false]
-	BLOCKMAXCLSLIM, // 	--blockmaxclslim = 1..2e9    maximum clause size[1e5]
-	BLOCKMINCLSLIM, // 	--blockminclslim = 2..2e9    minimum clause size[2]
-	BLOCKOCCLIM, // 	--blockocclim = 1..2e9       occurrence limit[1e2]
-	BUMP,			// 	--bump = bool                bump variables[true]
-	BUMPREASON,  // 	--bumpreason = bool          bump reason literals too[true]
-	BUMPREASONDEPTH, // 	--bumpreasondepth = 1..3     bump reason depth[1]
-	BUMPREASONLIMIT, // 	--bumpreasonlimit = 1..2e9   bump reason limit[10]
-	BUMPREASONRATE, // 	--bumpreasonrate = 1..2e9    bump reason decision rate[100]
-	CHECK,        //	--check = bool               enable internal checking[false]
-	CHECKASSUMPTIONS, //--checkassumptions = bool    check assumptions satisfied[true]
-	CHECKCONSTRAINT,	// 	--checkconstraint = bool     check constraint satisfied[true]
-	CHECKFAILED,  // 	--checkfailed = bool         check failed literals form core[true]
-	CHECKFROZEN,  // 	--checkfrozen = bool         check all frozen semantics[false]
-	CHECKPROOF,   // 	--checkproof = 0..3          1 = drat, 2 = lrat, 3 = both[3]
-	CHECKWITNESS, // 	--checkwitness = bool        check witness internally[true]
-	CHRONO,       // 	--chrono = 0..2              chronological backtracking[1]
-	CHRONOALWAYS, // 	--chronoalways = bool        force always chronological[false]
-	CHRONOLEVELIM, // 	--chronolevelim = 0..2e9     chronological level limit[1e2]
-	CHRONOREUSETRAIL, // 	--chronoreusetrail = bool    reuse trail chronologically[true]
-	COMPACT,      // 	--compact = bool             compact internal variables[true]
-	COMPACTINT,   // 	--compactint = 1..2e9        compacting interval[2e3]
-	COMPACTLIM,   // 	--compactlim = 0..1e3        inactive limit per mille[1e2]
-	COMPACTMIN,   // 	--compactmin = 1..2e9        minimum inactive limit[1e2]
-	CONDITION,    // 	--condition = bool           globally blocked clause elim[false]
-	CONDITIONEFFORT, // 	--conditioneffort = 1..1e5   relative efficiency per mille[100]
-	CONDITIONINT, // 	--conditionint = 1..2e9      initial conflict interval[1e4]
-	CONDITIONMAXEFF, // 	--conditionmaxeff = 0..2e9   maximum condition efficiency[1e7]
-	CONDITIONMAXRAT, // 	--conditionmaxrat = 1..2e9   maximum clause variable ratio[100]
-	CONDITIONMINEFF, // 	--conditionmineff = 0..2e9   minimum condition efficiency[0]
-	CONGRUENCE,   // 	--congruence = bool          congruence closure[true]
-	CONGRUENCEAND, // 	--congruenceand = bool       extract AND gates[true]
-	CONGRUENCEANDARITY, // 	--congruenceandarity = 2..5e7 AND gate arity limit[1e6]
-	CONGRUENCEBINARIES, // 	--congruencebinaries = bool  extract binary and strengthen ternary clauses[true]
-	CONGRUENCEITE, // 	--congruenceite = bool       extract ITE gates[true]
-	CONGRUENCEXOR, // 	--congruencexor = bool       extract XOR gates[true]
-	CONGRUENCEXORARITY, // 	--congruencexorarity = 2..31 XOR gate arity limit[4]
-	CONGRUENCEXORCOUNTS, // 	--congruencexorcounts = 1..5e6 XOR gate round[1]
-	COVER,        // 	--cover = bool               covered clause elimination[false]
-	COVEREFFORT,  // 	--covereffort = 1..1e5       relative efficiency per mille[4]
-	COVERMAXCLSLIM, // 	--covermaxclslim = 1..2e9    maximum clause size[1e5]
-	COVERMAXEFF,  // 	--covermaxeff = 0..2e9       maximum cover efficiency[1e8]
-	COVERMINCLSLIM, // 	--coverminclslim = 2..2e9    minimum clause size[2]
-	COVERMINEFF,  // 	--covermineff = 0..2e9       minimum cover efficiency[0]
-	DECOMPOSE,     //	--decompose = bool           decompose BIG in SCCs and ELS[true]
-	DECOMPOSEROUNDS, // --decomposerounds = 1..16    number of decompose rounds[2]
-	DEDUPLICATE,  //	--deduplicate = bool         remove duplicated binaries[true]
-	DEDUPLICATEALLINIT, //	--deduplicateallinit = bool  remove duplicated clauses once before solving[false]
-	EAGERSUBSUME,  //	--eagersubsume = bool        subsume recently learned[true]
-	EAGERSUBSUMELIM, //	--eagersubsumelim = 1..1e3   limit on subsumed candidates[20]
-	ELIM,         //	--elim = bool                bounded variable elimination[true]
-	ELIMANDS,      //	--elimands = bool            find AND gates[true]
-	ELIMBACKWARD,  //	--elimbackward = bool        eager backward subsumption[true]
-	ELIMBOUNDMAX,  //	--elimboundmax = -1..2e6     maximum elimination bound[16]
-	ELIMBOUNDMIN,  //	--elimboundmin = -1..2e6     minimum elimination bound[0]
-	ELIMCLSLIM,    //	--elimclslim = 2..2e9        resolvent size limit[1e2]
-	ELIMDEF,      //	--elimdef = bool             mine definitions with kitten[false]
-	ELIMDEFCORES, //	--elimdefcores = 1..100      number of unsat cores[1]
-	ELIMDEFTICKS,  //	--elimdefticks = 0..2e9      kitten ticks limit[2e5]
-	ELIMEFFORT,    //	--elimeffort = 1..1e5        relative efficiency per mille[1e3]
-	ELIMEQUIVS,    //	--elimequivs = bool          find equivalence gates[true]
-	ELIMINT,      //	--elimint = 1..2e9           elimination interval[2e3]
-	ELIMITES,     //	--elimites = bool            find if - then - else gates[true]
-	ELIMLIMITED,  //	--elimlimited = bool         limit resolutions[true]
-	ELIMMAXEFF,   //	--elimmaxeff = 0..2e9        maximum elimination efficiency[2e9]
-	ELIMMINEFF,   //	--elimmineff = 0..2e9        minimum elimination efficiency[1e7]
-	ELIMOCCLIM,   //	--elimocclim = 0..2e9        occurrence limit[1e2]
-	ELIMPROD,     //	--elimprod = 0..1e4          elim score product weight[1]
-	ELIMROUNDS,   //	--elimrounds = 1..512        usual number of rounds[2]
-	ELIMSUBST,    //	--elimsubst = bool           elimination by substitution[true]
-	ELIMSUM,      //	--elimsum = 0..1e4           elimination score sum weight[1]
-	ELIMXORLIM,   //	--elimxorlim = 2..27         maximum XOR size[5]
-	ELIMXORS,     //	--elimxors = bool            find XOR gates[true]
-	EMADECISIONS, //	--emadecisions = 1..2e9      window decision rate[1e5]
-	EMAGLUEFAST,  //	--emagluefast = 1..2e9       window fast glue[33]
-	EMAGLUESLOW,  //	--emaglueslow = 1..2e9       window slow glue[1e5]
-	EMAJUMP,      //	--emajump = 1..2e9           window back - jump level[1e5]
-	EMALEVEL,     //	--emalevel = 1..2e9          window back - track level[1e5]
-	EMASIZE,      //	--emasize = 1..2e9           window learned clause size[1e5]
-	EMATRAILFAST, //	--ematrailfast = 1..2e9      window fast trail[1e2]
-	EMATRAILSLOW, //	--ematrailslow = 1..2e9      window slow trail[1e5]
-	EXTEAGERREASONS, //	--exteagerreasons = bool     eagerly ask for all reasons(0: only when needed)[true]
-	EXTEAGERRECALC, //	--exteagerrecalc = bool      after eagerly asking for reasons recalculate all levels(0: trust the external tool)[true]
-	EXTERNALLRAT, //	--externallrat = bool        external lrat[false]
-	FACTOR,			//	--factor = bool              bounded variable addition[true]
-	FACTORCANDROUNDS, //--factorcandrounds = 0..2e9  candidates reduction rounds[2]
-	FACTORCHECK,  //	--factorcheck = 0..2         API checks that variables have been declared(1 = only with factor on, 2 = always)[1]
-	FACTORDELAY,  //	--factordelay = 0..12        delay bounded variable addition between eliminations[4]
-	FACTOREFFORT, //	--factoreffort = 0..1e6      relative effort per mille[50]
-	FACTORINITICKS, //	--factoriniticks = 1..1e6    initial effort in millions[300]
-	FACTORSIZE,   //	--factorsize = 2..2e9        clause size limit[5]
-	FACTORTHRESH, //	--factorthresh = 0..100      delay if ticks smaller thresh* clauses[7]
-	FACTORUNBUMP, //	--factorunbump = bool        extension variable with lowest importance[1:as in kissat][true]
-	FASTELIM,    //	--fastelim = bool            fast BVE during preprocessing[true]
-	FASTELIMBOUND, //	--fastelimbound = 1..1e3     fast BVE bound during preprocessing[8]
-	FASTELIMCLSLIM, //	--fastelimclslim = 2..2e9    fast BVE resolvent size limit[1e2]
-	FASTELIMOCCLIM, //	--fastelimocclim = 1..2e9    fast BVE occurence limit during preprocessing[100]
-	FASTELIMROUNDS, //	--fastelimrounds = 1..512    number of fastelim rounds[4]
-	FLUSH,       //	--flush = bool               flush redundant clauses[false]
-	FLUSHFACTOR, //	--flushfactor = 1..1e3       interval increase[3]
-	FLUSHINT,    //	--flushint = 1..2e9          initial limit[1e5]
-	FORCEPHASE,  //	--forcephase = bool          always use initial phase[false]
-	FRAT,        //	--frat = 0..2                1 = frat(lrat), 2 = frat(drat)[0]
-	IDRUP,       //	--idrup = bool               incremental proof format[false]
-	ILB,         //	--ilb = 0..2                 ILB(incremental lazy backtrack) (0: no, 1 : assumptions only, 2 : everything)[0]
-	INCDECAY,    //	--incdecay = 0..4            decay clauses when doing incremental clauses[1]
-	INCDECAYINT, //	--incdecayint = 1..2e9       decay interval when doing incremental clauses[1e6]
-	INPROBEINT,  //	--inprobeint = 1..2e9        inprobing interval[100]
-	INPROBING,   //	--inprobing = bool           enable probe inprocessing[true]
-	INPROCESSING, //	--inprocessing = bool        enable general inprocessing[true]
-	INSTANTIATE, //	--instantiate = bool         variable instantiation[false]
-	INSTANTIATECLSLIM, //	--instantiateclslim = 2..2e9 minimum clause size[3]
-	INSTANTIATEOCCLIM, //	--instantiateocclim = 1..2e9 maximum occurrence limit[1]
-	INSTANTIATEONCE, //	--instantiateonce = bool     instantiate each clause once[true]
-	LIDRUP,      //	--lidrup = bool              linear incremental proof format[false]
-	LRAT,        //	--lrat = bool                use LRAT proof format[false]
-	LUCKY,       //	--lucky = bool               lucky phases[true]
-	LUCKYASSUMPTIONS, //	--luckyassumptions = bool    lucky phases with assumptions[true]
-	LUCKYEARLY,  //	--luckyearly = bool          lucky phases before preprocessing[true]
-	LUCKYLATE,   //	--luckylate = bool           lucky phases after preprocessing[true]
-	MINIMIZE,    //	--minimize = bool            minimize learned clauses[true]
-	MINIMIZEDEPTH, //	--minimizedepth = 0..1e3     minimization depth[1e3]
-	MINIMIZETICKS, //	--minimizeticks = bool       increment ticks in minimization[true]
-	OTFS,        //	--otfs = bool                on - the - fly self subsumption[true]
-	PHASE,       //	--phase = bool               initial phase[true]
-	PREPROCESSINIT, //	--preprocessinit = 0..2e9    initial preprocessing base limit[2e6]
-	PREPROCESSLIGHT, //	--preprocesslight = bool     lightweight preprocessing[true]
-	PROBE,       //	--probe = bool               failed literal probing[true]
-	PROBEEFFORT, //	--probeeffort = 1..1e5       relative efficiency per mille[8]
-	PROBEHBR,    //	--probehbr = bool            learn hyper binary clauses[true]
-	PROBETHRESH, //	--probethresh = 0..100       delay if ticks smaller thresh* clauses[0]
-	PROFILE,     //	--profile = 0..4             profiling level[2]
-	QUIET,       //	--quiet = bool               disable all messages[false]
-	RADIXSORTLIM, //	--radixsortlim = 0..2e9      radix sort limit[32]
-	RANDEC,      //	--randec = bool              random decisions[false]
-	RANDECFOCUSED, //	--randecfocused = bool       random decisions in focused mode[true]
-	RANDECINIT,  //	--randecinit = 2..2e9        inital random decision interval[1e3]
-	RANDECINT,   //	--randecint = 0..2e9         random conflict length[500]
-	RANDECLENGTH, //	--randeclength = 1..1e9      length random decisions phases[10]
-	RANDECSTABLE, //	--randecstable = bool        random decisions in stable mode[false]
-	REALTIME,    //	--realtime = bool            real instead of process time[false]
-	RECOMPUTETIER, //	--recomputetier = bool       recompute tiers[true]
-	REDUCE,      //	--reduce = bool              reduce useless clauses[true]
-	REDUCEINIT,  //	--reduceinit = 1..1e6        initial interval[300]
-	REDUCEINT,   //	--reduceint = 2..1e6         reduce interval[25]
-	REDUCEOPT,   //	--reduceopt = 0..2           0 = prct, 1 = sqrt, 2 = max[1]
-	REDUCETARGET, //	--reducetarget = 10..1e2     reduce fraction in percent[75]
-	REDUCETIER1GLUE, //	--reducetier1glue = 1..2e9   glue of kept learned clauses[2]
-	REDUCETIER2GLUE, //	--reducetier2glue = 1..2e9   glue of tier two clauses[6]
-	RELUCTANT,   //	--reluctant = bool           stable reluctant doubling restarts[true]
-	RELUCTANTINT, //	--reluctantint = 0..2e9      reluctant doubling period[1024]
-	RELUCTANTMAX, //	--reluctantmax = 0..2e9      maximum reluctant doubling period[1048576]
-	REPHASE,     //	--rephase = 0..2             enable resetting phase(0 = no, 1 = always, 2 = stable - only)[1]
-	REPHASEINT,  //	--rephaseint = 1..2e9        rephase interval[1e3]
-	REPORT,      //	--report = bool              enable reporting[false]
-	REPORTALL,   //	--reportall = bool           report even if not successful[false]
-	REPORTSOLVE, //	--reportsolve = bool         use solving not process time[false]
-	RESTART,     //	--restart = bool             enable restarts[true]
-	RESTARTINT,  //	--restartint = 1..2e9        restart interval[2]
-	RESTARTMARGINFOCUSED, //	--restartmarginfocused = 0..25 focused slow fast margin in percent[10]
-	RESTARTMARGINSTABLE, //	--restartmarginstable = 0..25 stable slow fast margin in percent[25]
-	RESTARTREUSETRAIL, //	--restartreusetrail = bool   enable trail reuse[true]
-	RESTOREALL,  //	--restoreall = 0..2          restore all clauses(2 = really)[0]
-	RESTOREFLUSH, //	--restoreflush = bool        remove satisfied clauses[false]
-	REVERSE,     //	--reverse = bool             reverse variable ordering[false]
-	SCORE,       //	--score = bool               use EVSIDS scores[true]
-	SCOREFACTOR,   //	--scorefactor = 500..1e3     score factor per mille[950]
-	SHRINK,      //	--shrink = 0..3              shrink conflict clause(1 = binary - only, 2 = minimize - on - pulling, 3 = full)[3]
-	SHRINKREAP,   //	--shrinkreap = bool          use a reap for shrinking[true]
-	SHUFFLE,      //	--shuffle = bool             shuffle variables[false]
-	SHUFFLEQUEUE,  //	--shufflequeue = bool        shuffle variable queue[true]
-	SHUFFLERANDOM, //	--shufflerandom = bool       not reverse but random[false]
-	SHUFFLESCORES, //	--shufflescores = bool       shuffle variable scores[true]
-	STABILIZE,    //	--stabilize = bool           enable stabilizing phases[true]
-	STABILIZEINIT, //	--stabilizeinit = 1..2e9     stabilizing interval[1e3]
-	STABILIZEONLY,  //	--stabilizeonly = bool       only stabilizing phases[false]
-	STATS,        //	--stats = bool               print all statistics at the end of the run[false]
-	STUBBORNIOFOCUSED, //	--stubbornIOfocused = bool   force phases to I / O in focused mode every once in a while (requires rephase == 2)[false]
-	SUBSUME,      //	--subsume = bool             enable clause subsumption[true]
-	SUBSUMEBINLIM, //	--subsumebinlim = 0..2e9     watch list length limit[1e4]
-	SUBSUMECLSLIM, //	--subsumeclslim = 0..2e9     clause length limit[1e2]
-	SUBSUMEEFFORT, //	--subsumeeffort = 1..1e5     relative efficiency per mille[1e3]
-	SUBSUMELIMITED, //	--subsumelimited = bool      limit subsumption checks[true]
-	SUBSUMEMAXEFF, //	--subsumemaxeff = 0..2e9     maximum subsuming efficiency[1e8]
-	SUBSUMEMINEFF, //	--subsumemineff = 0..2e9     minimum subsuming efficiency[0]
-	SUBSUMEOCCLIM, //	--subsumeocclim = 0..2e9     watch list length limit[1e2]
-	SUBSUMESTR,   //	--subsumestr = bool          subsume strengthen[true]
-	SWEEP,        //	--sweep = bool               enable SAT sweeping[true]
-	SWEEPCLAUSES, //	--sweepclauses = 0..2e9      environment clauses[1024]
-	SWEEPCOMPLETE, //	--sweepcomplete = bool       run SAT sweeping to completion[false]
-	SWEEPCOUNTBINARY, //	--sweepcountbinary = bool    count binaries to environment[true]
-	SWEEPDEPTH,   //	--sweepdepth = 0..2e9        environment depth[2]
-	SWEEPEFFORT,  //	--sweepeffort = 0..1e4       relative effort in ticks per mille[1e2]
-	SWEEPFLIPROUNDS, //	--sweepfliprounds = 0..2e9   flipping rounds[1]
-	SWEEPMAXCLAUSES, //	--sweepmaxclauses = 2..2e9   maximum environment clauses[3e5]
-	SWEEPMAXDEPTH, //	--sweepmaxdepth = 1..2e9     maximum environment depth[3]
-	SWEEPMAXVARS, //	--sweepmaxvars = 2..2e9      maximum environment variables[8192]
-	SWEEPRAND,    //	--sweeprand = bool           randomize sweeping environment[false]
-	SWEEPTHRESH,  //	--sweepthresh = 0..100       delay if ticks smaller thresh* clauses[5]
-	SWEEPVARS,    //	--sweepvars = 0..2e9         environment variables[256]
-	TARGET,       //	--target = 0..2              target phases(1 = stable only)[1]
-	TERMINATEINT, //	--terminateint = 0..1e4      termination check interval[10]
-	TERNARY,      //	--ternary = bool             hyper ternary resolution[true]
-	TERNARYEFFORT, //	--ternaryeffort = 1..1e5     relative efficiency per mille[8]
-	TERNARYMAXADD, //	--ternarymaxadd = 0..1e4     max clauses added in percent[1e3]
-	TERNARYOCCLIM, //	--ternaryocclim = 1..2e9     ternary occurrence limit[1e2]
-	TERNARYROUNDS, //	--ternaryrounds = 1..16      maximum ternary rounds[2]
-	TERNARYTHRESH, //	--ternarythresh = 0..100     delay if ticks smaller thresh* clauses[6]
-	TIER1LIMIT,   //	--tier1limit = 0..100        limit of tier1 usage in percentage[50]
-	TIER1MINGLUE, //	--tier1minglue = 0..100      lowest tier1 limit[0]
-	TIER2LIMIT,   //	--tier2limit = 0..100        limit of tier2 usage in percentage[90]
-	TIER2MINGLUE, //	--tier2minglue = 0..100      lowest tier2 limit[0]
-	TRANSRED,     //	--transred = bool            transitive reduction of BIG[true]
-	TRANSREDEFFORT, //	--transredeffort = 1..1e5    relative efficiency per mille[1e2]
-	TRANSREDMAXEFF, //	--transredmaxeff = 0..2e9    maximum
-	TRANSREDMINEFF, //	--transredmineff = 0..2e9    minimum efficiency[0]
-	VERBOSE,     //	--verbose = 0..3             more verbose messages[0]              
-	VERIPB,      //	--veripb = 0..4              odd = check - deletions, > 2 drat[0]
-	VIVIFY,      //	--vivify = bool              vivification[true]
-	VIVIFYCALCTIER, //	--vivifycalctier = bool      recalculate tier limits[false]
-	VIVIFYDEMOTE, //	--vivifydemote = bool        demote irredundant or delete directly[false]
-	VIVIFYEFFORT, //	--vivifyeffort = 0..1e5      overall efficiency per mille[50]
-	VIVIFYFLUSH, //	--vivifyflush = bool         flush subsumed before vivification rounds[true]
-	VIVIFYINST,  //	--vivifyinst = bool          instantiate last literal when vivify[true]
-	VIVIFYIRRED, //	--vivifyirred = bool         vivification of irredundant clauses[true]
-	VIVIFYIRREDEFF, //	--vivifyirredeff = 1..100    irredundant efficiency per mille[3]
-	VIVIFYONCE,  //	--vivifyonce = 0..2          vivify once : 1 = red, 2 = red + irr[0]
-	VIVIFYRETRY, //	--vivifyretry = 0..5         re - vivify clause if vivify was successful[0]
-	VIVIFYSCHEDMAX, //	--vivifyschedmax = 10..2e9   maximum schedule size[5e3]
-	VIVIFYTHRESH, //	--vivifythresh = 0..100      delay if ticks smaller thresh* clauses[20]
-	VIVIFYTIER1, //	--vivifytier1 = bool         vivification tier1[true]
-	VIVIFYTIER1EFF, //	--vivifytier1eff = 0..100    relative tier1 effort[4]
-	VIVIFYTIER2, //	--vivifytier2 = bool         vivification tier2[true]
-	VIVIFYTIER2EFF, //	--vivifytier2eff = 1..100    relative tier2 effort[2]
-	VIVIFYTIER3, //	--vivifytier3 = bool         vivification tier3[true]
-	VIVIFYTIER3EFF, //	--vivifytier3eff = 1..100    relative tier3 effort[1]
-	WALK,        //	--walk = bool                enable random walks[true]
-	WALKEFFORT,  //	--walkeffort = 1..1e5        relative efficiency per mille[80]
-	WALKFULLOCC, //	--walkfullocc = bool         use Kissat's full occurrences instead of the single watched [false]
-	WALKMAXEFF,  //	--walkmaxeff = 0..2e9        maximum efficiency(in 1e3 ticks)[1e7]
-	WALKMINEFF,  //	--walkmineff = 0..1e7        minimum efficiency[0]
-	WALKNONSTABLE, //	--walknonstable = bool       walk in non - stabilizing phase[true]
-	WALKREDUNDANT, //	--walkredundant = bool       walk redundant clauses too[false]
-	WARMUP,      //	--warmup = bool              warmup before walk using propagation[true]
-
-	PARAMETROS_CADICAL
-};
-
-enum EIndicadoresCaDiCaL {
-	IND_MEMORY = IND_PROCURA,
-	IND_PROPAGATIONS,
-	IND_TICKS,
-	IND_RESTARTS,
-	IND_LEARNED,
-	IND_FIXED,
-	IND_MAXLEVEL,
-	IND_CADICAL,
-	IND_CONFLICTS = IND_ITERACOES
-};
-
+// caminho para o executável do solver
+TString CCaDiCaL::solver = "./cadical/build/cadical";
 
 void CCaDiCaL::ResetParametros()
 {
-	static const char* nomesMetodo[] = {
-		"CaDiCaL"
-	};
-	static const char* definedConfigurations[] = {
-		"no configuration", "default", "plain", "sat", "unsat"
-	};
-	static const char* trueFalse[] = {
-		"false", "true"
-	};
+	TVector<TString> trueFalse = { "false", "true" };
 
 	TProcura::ResetParametros();
 
 	// changing parameters defined in TProcura
-	parametro[ALGORITMO] = { "Solver",1,1,1,"Solver of a SAT", nomesMetodo };
-	//parametro[NIVEL_DEBUG] = { "verbose",0,0,3,"more verbose messages", NULL }; /// cannot be changed since is used to congtrol level of information shown during the run
-	parametro[SEMENTE] = { "seed",0,0,2000000000,"random seed", NULL };
-	parametro[LIMITE_TEMPO] = { "t",10,1,86400,"set wall clock time limit", NULL };
-	parametro[LIMITE_ITERACOES] = { "c",0,0,1000000000,"limit the number of conflicts (default unlimited)", NULL };
+	parametro[ALGORITMO] = { "Solver",1,1,1,"Solver of a SAT", { "CaDiCaL" } };
+	//parametro[NIVEL_DEBUG] = { "verbose",0,0,3,"more verbose messages" }; /// cannot be changed since is used to congtrol level of information shown during the run
+	parametro[SEMENTE] = { "seed",0,0,2000000000,"random seed" };
+	parametro[LIMITE_TEMPO] = { "t",10,1,86400,"set wall clock time limit" };
+	parametro[LIMITE_ITERACOES] = { "c",0,0,1000000000,"limit the number of conflicts (default unlimited)" };
 
 	// adding CaDiCaL main parameters
-	parametro += { "d", 0, 0, 1000000000, "limit the number of decisions (default unlimited)", NULL };
-	parametro += { "L", 0, 0, 1000, "run local search initially (default '0' rounds)", NULL };
-	parametro += { "P", 0, 0, 1000, "initial preprocessing (default '0' rounds)", NULL };
-	parametro += { "Defined configurations", 0, 0, 4, "pre-defined configurations of advanced internal options: default (set default advanced internal options); plain (disable all internal preprocessing options); sat (set internal options to target satisfiable instances); unsat (set internal options to target unsatisfiable instances).", definedConfigurations };
+	parametro += { "d", 0, 0, 1000000000, "limit the number of decisions (default unlimited)" };
+	parametro += { "L", 0, 0, 1000, "run local search initially (default '0' rounds)" };
+	parametro += { "P", 0, 0, 1000, "initial preprocessing (default '0' rounds)" };
+	parametro += { "Defined configurations", 0, 0, 4, "pre-defined configurations of advanced internal options: default (set default advanced internal options); plain (disable all internal preprocessing options); sat (set internal options to target satisfiable instances); unsat (set internal options to target unsatisfiable instances).",
+		{ "no configuration", "default", "plain", "sat", "unsat" }};
 
 	// adding CaDiCaL full set of parameters
 	parametro += {
 		{ "arena", 1, 0, 1, "allocate clauses in arena[true]", trueFalse },
 		{ "arenacompact", 1, 0, 1, "keep clauses compact[true]", trueFalse, { ARENA,1 } },
 		{ "arenasort", 1, 0, 1, "sort clauses in arena[true]", trueFalse, { ARENA,1 } },
-		{ "arenatype", 3, 1, 3, "1 = clause, 2 = var, 3 = queue[3]", NULL, { ARENA,1 } }};
+		{ "arenatype", 3, 1, 3, "1 = clause, 2 = var, 3 = queue[3]", {}, {ARENA,1} }};
 	parametro += {
-		{ "backbone", 1, 0, 2, "binary clause backbone[1]", NULL },
-		{ "backboneeffort", 20, 0, 100000, "binary effort in per mile[20]", NULL, { BACKBONE,1 } },
-		{ "backbonemaxrounds", 1000, 0, 100000, "backbone rounds limit[1e3]", NULL, { BACKBONE,1 } },
-		{ "backbonerounds", 100, 0, 100000, "backbone rounds limit[100]", NULL, { BACKBONE,1 } },
-		{ "backbonethresh", 5, 0, 1000000000, "delay if ticks smaller thresh* clauses[5]", NULL, { BACKBONE,1 } }};
+		{ "backbone", 1, 0, 2, "binary clause backbone[1]" },
+		{ "backboneeffort", 20, 0, 100000, "binary effort in per mile[20]", {}, { BACKBONE,1 } },
+		{ "backbonemaxrounds", 1000, 0, 100000, "backbone rounds limit[1e3]", {}, { BACKBONE,1 } },
+		{ "backbonerounds", 100, 0, 100000, "backbone rounds limit[100]", {}, { BACKBONE,1 } },
+		{ "backbonethresh", 5, 0, 1000000000, "delay if ticks smaller thresh* clauses[5]", {}, { BACKBONE,1 } }};
 	parametro += { "binary", 1, 0, 1, "use binary proof format[true]", trueFalse };
 	parametro += {
 		{ "block", 0, 0, 1, "blocked clause elimination[false]", trueFalse },
-		{ "blockmaxclslim", 100000, 1, 2000000000, "maximum clause size[1e5]", NULL, { BLOCK,1 } },
-		{ "blockminclslim", 2, 2, 2000000000, "minimum clause size[2]", NULL, { BLOCK,1 } },
-		{ "blockocclim", 100, 1, 2000000000, "occurrence limit[1e2]", NULL, { BLOCK,1 } }};
+		{ "blockmaxclslim", 100000, 1, 2000000000, "maximum clause size[1e5]", {}, { BLOCK,1 } },
+		{ "blockminclslim", 2, 2, 2000000000, "minimum clause size[2]", {}, { BLOCK,1 } },
+		{ "blockocclim", 100, 1, 2000000000, "occurrence limit[1e2]", {}, { BLOCK,1 } }};
 	parametro += {
 		{ "bump", 1, 0, 1, "bump variables[true]", trueFalse },
 		{ "bumpreason", 1, 0, 1, "bump reason literals too[true]", trueFalse, { BUMP,1 } },
-		{ "bumpreasondepth", 1, 1, 3, "bump reason depth[1]", NULL, { BUMPREASON,1 } },
-		{ "bumpreasonlimit", 10, 1, 2000000000, "bump reason limit[10]", NULL, { BUMPREASON,1 } },
-		{ "bumpreasonrate", 100, 1, 2000000000, "bump reason decision rate[100]", NULL, { BUMPREASON,1 } }};
+		{ "bumpreasondepth", 1, 1, 3, "bump reason depth[1]", {}, { BUMPREASON,1 } },
+		{ "bumpreasonlimit", 10, 1, 2000000000, "bump reason limit[10]", {}, { BUMPREASON,1 } },
+		{ "bumpreasonrate", 100, 1, 2000000000, "bump reason decision rate[100]", {}, { BUMPREASON,1 } }};
 	parametro += {
 		{ "check", 0, 0, 1, "enable internal checking[false]", trueFalse },
 		{ "checkassumptions", 1, 0, 1, "check assumptions satisfied[true]", trueFalse, { CHECK,1 } },
 		{ "checkconstraint", 1, 0, 1, "check constraint satisfied[true]", trueFalse, { CHECK,1 } },
 		{ "checkfailed", 1, 0, 1, "check failed literals form core[true]", trueFalse, { CHECK,1 } },
 		{ "checkfrozen", 0, 0, 1, "check all frozen semantics[false]", trueFalse, { CHECK,1 } },
-		{ "checkproof", 3, 0, 3, "1 = drat, 2 = lrat, 3 = both[3]", NULL, { CHECK,1 } },
+		{ "checkproof", 3, 0, 3, "1 = drat, 2 = lrat, 3 = both[3]", {}, { CHECK,1 } },
 		{ "checkwitness", 1, 0, 1, "check witness internally[true]", trueFalse, { CHECK,1 } }};
 	parametro += {
-		{ "chrono", 1, 0, 2, "chronological backtracking[1]", NULL },
+		{ "chrono", 1, 0, 2, "chronological backtracking[1]"},
 		{ "chronoalways", 0, 0, 1, "force always chronological[false]", trueFalse, { CHRONO,1,2 } },
-		{ "chronolevelim", 100, 0, 2000000000, "chronological level limit[1e2]", NULL, { CHRONO,1,2 } },
+		{ "chronolevelim", 100, 0, 2000000000, "chronological level limit[1e2]", {}, { CHRONO,1,2 } },
 		{ "chronoreusetrail", 1, 0, 1, "reuse trail chronologically[true]", trueFalse, { CHRONO,1,2 } }};
 	parametro += {
 		{ "compact", 1, 0, 1, "compact internal variables[true]", trueFalse },
-		{ "compactint", 2000, 1, 2000000000, "compacting interval[2e3]", NULL, { COMPACT,1 } },
-		{ "compactlim", 100, 0, 1000, "inactive limit per mille[1e2]", NULL, { COMPACT,1 } },
-		{ "compactmin", 100, 1, 2000000000, "minimum inactive limit[1e2]", NULL, { COMPACT,1 } }};
+		{ "compactint", 2000, 1, 2000000000, "compacting interval[2e3]", {}, { COMPACT,1 } },
+		{ "compactlim", 100, 0, 1000, "inactive limit per mille[1e2]", {}, { COMPACT,1 } },
+		{ "compactmin", 100, 1, 2000000000, "minimum inactive limit[1e2]", {}, { COMPACT,1 } }};
 	parametro += {
 		{ "condition", 0, 0, 1, "globally blocked clause elim[false]", trueFalse },
-		{ "conditioneffort", 100, 1, 100000, "relative efficiency per mille[100]", NULL, { CONDITION,1 } },
-		{ "conditionint", 10000, 1, 2000000000, "initial conflict interval[1e4]", NULL, { CONDITION,1 } },
-		{ "conditionmaxeff", 10000000, 0, 2000000000, "maximum condition efficiency[1e7]", NULL, { CONDITION,1 } },
-		{ "conditionmaxrat", 100, 1, 2000000000, "maximum clause variable ratio[100]", NULL, { CONDITION,1 } },
-		{ "conditionmineff", 0, 0, 2000000000, "minimum condition efficiency[0]", NULL, { CONDITION,1 } }};
+		{ "conditioneffort", 100, 1, 100000, "relative efficiency per mille[100]", {}, { CONDITION,1 } },
+		{ "conditionint", 10000, 1, 2000000000, "initial conflict interval[1e4]", {}, { CONDITION,1 } },
+		{ "conditionmaxeff", 10000000, 0, 2000000000, "maximum condition efficiency[1e7]", {}, { CONDITION,1 } },
+		{ "conditionmaxrat", 100, 1, 2000000000, "maximum clause variable ratio[100]", {}, { CONDITION,1 } },
+		{ "conditionmineff", 0, 0, 2000000000, "minimum condition efficiency[0]", {}, { CONDITION,1 } }};
 	parametro += {
 		{ "congruence", 1, 0, 1, "congruence closure[true]", trueFalse },
 		{ "congruenceand", 1, 0, 1, "extract AND gates[true]", trueFalse, { CONGRUENCE,1 } },
-		{ "congruenceandarity", 1000000, 2, 50000000, "AND gate arity limit[1e6]", NULL, { CONGRUENCEAND,1 } },
+		{ "congruenceandarity", 1000000, 2, 50000000, "AND gate arity limit[1e6]", {}, { CONGRUENCEAND,1 } },
 		{ "congruencebinaries", 1, 0, 1, "extract binary and strengthen ternary clauses[true]", trueFalse, { CONGRUENCE,1 } },
 		{ "congruenceite", 1, 0, 1, "extract ITE gates[true]", trueFalse, { CONGRUENCE,1 } },
 		{ "congruencexor", 1, 0, 1, "extract XOR gates[true]", trueFalse, { CONGRUENCE,1 } },
-		{ "congruencexorarity", 4, 2, 31, "XOR gate arity limit[4]", NULL, { CONGRUENCEXOR,1 } },
-		{ "congruencexorcounts", 1, 1, 5000000, "XOR gate round[1]", NULL, { CONGRUENCEXOR,1 } }};
+		{ "congruencexorarity", 4, 2, 31, "XOR gate arity limit[4]", {}, { CONGRUENCEXOR,1 } },
+		{ "congruencexorcounts", 1, 1, 5000000, "XOR gate round[1]", {}, { CONGRUENCEXOR,1 } }};
 	parametro += {
 		{ "cover", 0, 0, 1, "covered clause elimination[false]", trueFalse },
-		{ "covereffort", 4, 1, 100000, "relative efficiency per mille[4]", NULL, { COVER,1 } },
-		{ "covermaxclslim", 100000, 1, 2000000000, "maximum clause size[1e5]", NULL, { COVER,1 } },
-		{ "covermaxeff", 100000000, 0, 2000000000, "maximum cover efficiency[1e8]", NULL, { COVER,1 } },
-		{ "coverminclslim", 2, 2, 2000000000, "minimum clause size[2]", NULL, { COVER,1 } },
-		{ "covermineff", 0, 0, 2000000000, "minimum cover efficiency[0]", NULL, { COVER,1 } }};
+		{ "covereffort", 4, 1, 100000, "relative efficiency per mille[4]", {}, { COVER,1 } },
+		{ "covermaxclslim", 100000, 1, 2000000000, "maximum clause size[1e5]", {}, { COVER,1 } },
+		{ "covermaxeff", 100000000, 0, 2000000000, "maximum cover efficiency[1e8]", {}, { COVER,1 } },
+		{ "coverminclslim", 2, 2, 2000000000, "minimum clause size[2]", {}, { COVER,1 } },
+		{ "covermineff", 0, 0, 2000000000, "minimum cover efficiency[0]", {}, { COVER,1 } }};
 	parametro += {
 		{ "decompose", 1, 0, 1, "decompose BIG in SCCs and ELS[true]", trueFalse },
-		{ "decomposerounds", 2, 1, 16, "number of decompose rounds[2]", NULL, { DECOMPOSE,1 } }};
+		{ "decomposerounds", 2, 1, 16, "number of decompose rounds[2]", {}, { DECOMPOSE,1 } }};
 	parametro += {
 		{ "deduplicate", 1, 0, 1, "remove duplicated binaries[true]", trueFalse },
 		{ "deduplicateallinit", 0, 0, 1, "remove duplicated clauses once before solving[false]", trueFalse, { DEDUPLICATE,1 } }};
 	parametro += {
 		{ "eagersubsume", 1, 0, 1, "subsume recently learned[true]", trueFalse },
-		{ "eagersubsumelim", 20, 1, 1000, "limit on subsumed candidates[20]", NULL, { EAGERSUBSUME,1 } }};
+		{ "eagersubsumelim", 20, 1, 1000, "limit on subsumed candidates[20]", {}, { EAGERSUBSUME,1 } }};
 	parametro += {
 		{ "elim", 1, 0, 1, "bounded variable elimination[true]", trueFalse },
 		{ "elimands", 1, 0, 1, "find AND gates[true]", trueFalse, { ELIM,1 } },
 		{ "elimbackward", 1, 0, 1, "eager backward subsumption[true]", trueFalse, { ELIM,1 } },
-		{ "elimboundmax", 16, -1, 2000000, "maximum elimination bound[16]", NULL, { ELIM,1 } },
-		{ "elimboundmin", 0, -1, 2000000, "minimum elimination bound[0]", NULL, { ELIM,1 } },
-		{ "elimclslim", 100, 2, 2000000000, "resolvent size limit[1e2]", NULL, { ELIM,1 } },
+		{ "elimboundmax", 16, -1, 2000000, "maximum elimination bound[16]", {}, { ELIM,1 } },
+		{ "elimboundmin", 0, -1, 2000000, "minimum elimination bound[0]", {}, { ELIM,1 } },
+		{ "elimclslim", 100, 2, 2000000000, "resolvent size limit[1e2]", {}, { ELIM,1 } },
 		{ "elimdef", 0, 0, 1, "mine definitions with kitten[false]", trueFalse, { ELIM,1 } },
-		{ "elimdefcores", 1, 1, 100, "number of unsat cores[1]", NULL, { ELIM,1 } },
-		{ "elimdefticks", 200000, 0, 2000000000, "kitten ticks limit[2e5]", NULL, { ELIM,1 } },
-		{ "elimeffort", 1000, 1, 100000, "relative efficiency per mille[1e3]", NULL, { ELIM,1 } },
+		{ "elimdefcores", 1, 1, 100, "number of unsat cores[1]", {}, { ELIM,1 } },
+		{ "elimdefticks", 200000, 0, 2000000000, "kitten ticks limit[2e5]", {}, { ELIM,1 } },
+		{ "elimeffort", 1000, 1, 100000, "relative efficiency per mille[1e3]", {}, { ELIM,1 } },
 		{ "elimequivs", 1, 0, 1, "find equivalence gates[true]", trueFalse, { ELIM,1 } },
-		{ "elimint", 2000, 1, 2000000000, "elimination interval[2e3]", NULL, { ELIM,1 } },
+		{ "elimint", 2000, 1, 2000000000, "elimination interval[2e3]", {}, { ELIM,1 } },
 		{ "elimites", 1, 0, 1, "find if - then - else gates[true]", trueFalse, { ELIM,1 } },
 		{ "elimlimited", 1, 0, 1, "limit resolutions[true]", trueFalse, { ELIM,1 } },
-		{ "elimmaxeff", 1000000000, 0, 2000000000, "maximum elimination efficiency[1e9]", NULL, { ELIM,1 } },
-		{ "elimmineff", 10000000, 0, 2000000000, "minimum elimination efficiency[1e7]", NULL, { ELIM,1 } },
-		{ "elimocclim", 100, 0, 2000000000, "occurrence limit[1e2]", NULL, { ELIM,1 } },
-		{ "elimprod", 1, 0, 10000, "elim score product weight[1]", NULL, { ELIM,1 } },
-		{ "elimrounds", 2, 1, 512, "usual number of rounds[2]", NULL, { ELIM,1 } },
+		{ "elimmaxeff", 1000000000, 0, 2000000000, "maximum elimination efficiency[1e9]", {}, { ELIM,1 } },
+		{ "elimmineff", 10000000, 0, 2000000000, "minimum elimination efficiency[1e7]", {}, { ELIM,1 } },
+		{ "elimocclim", 100, 0, 2000000000, "occurrence limit[1e2]", {}, { ELIM,1 } },
+		{ "elimprod", 1, 0, 10000, "elim score product weight[1]", {}, { ELIM,1 } },
+		{ "elimrounds", 2, 1, 512, "usual number of rounds[2]", {}, { ELIM,1 } },
 		{ "elimsubst", 1, 0, 1, "elimination by substitution[true]", trueFalse, { ELIM,1 } },
-		{ "elimsum", 1, 0, 10000, "elimination score sum weight[1]", NULL, { ELIM,1 } },
-		{ "elimxorlim", 5, 2, 27, "maximum XOR size[5]", NULL, { ELIM,1 } },
+		{ "elimsum", 1, 0, 10000, "elimination score sum weight[1]", {}, { ELIM,1 } },
+		{ "elimxorlim", 5, 2, 27, "maximum XOR size[5]", {}, { ELIM,1 } },
 		{ "elimxors", 1, 0, 1, "find XOR gates[true]", trueFalse, { ELIM,1 } }};
-	parametro += { "emadecisions", 100000, 1, 2000000000, "window decision rate[1e5]", NULL };
-	parametro += { "emagluefast", 33, 1, 2000000000, "window fast glue[33]", NULL };
-	parametro += { "emaglueslow", 100000, 1, 2000000000, "window slow glue[1e5]", NULL };
-	parametro += { "emajump", 100000, 1, 2000000000, "window back - jump level[1e5]", NULL };
-	parametro += { "emalevel", 100000, 1, 2000000000, "window back - track level[1e5]", NULL };
-	parametro += { "emasize", 100000, 1, 2000000000, "window learned clause size[1e5]", NULL };
-	parametro += { "ematrailfast", 100, 1, 2000000000, "window fast trail[1e2]", NULL };
-	parametro += { "ematrailslow", 100000, 1, 2000000000, "window slow trail[1e5]", NULL };
+	parametro += { "emadecisions", 100000, 1, 2000000000, "window decision rate[1e5]"};
+	parametro += { "emagluefast", 33, 1, 2000000000, "window fast glue[33]"};
+	parametro += { "emaglueslow", 100000, 1, 2000000000, "window slow glue[1e5]"};
+	parametro += { "emajump", 100000, 1, 2000000000, "window back - jump level[1e5]"};
+	parametro += { "emalevel", 100000, 1, 2000000000, "window back - track level[1e5]"};
+	parametro += { "emasize", 100000, 1, 2000000000, "window learned clause size[1e5]"};
+	parametro += { "ematrailfast", 100, 1, 2000000000, "window fast trail[1e2]"};
+	parametro += { "ematrailslow", 100000, 1, 2000000000, "window slow trail[1e5]"};
 	parametro += { "exteagerreasons", 1, 0, 1, "eagerly ask for all reasons(0: only when needed)[true]", trueFalse };
 	parametro += { "exteagerrecalc", 1, 0, 1, "after eagerly asking for reasons recalculate all levels(0: trust the external tool)[true]", trueFalse };
 	parametro += { "externallrat", 0, 0, 1, "external lrat[false]", trueFalse };
 	parametro += {
 		{ "factor", 1, 0, 1, "bounded variable addition[true]", trueFalse },
-		{ "factorcandrounds", 2, 0, 2000000000, "candidates reduction rounds[2]", NULL, { FACTOR,1 } },
-		{ "factorcheck", 1, 0, 2, "API checks that variables have been declared(1 = only with factor on, 2 = always)[1]", NULL, { FACTOR,1 } },
-		{ "factordelay", 4, 0, 12, "delay bounded variable addition between eliminations[4]", NULL, { FACTOR,1 } },
-		{ "factoreffort", 50, 0, 100000, "relative effort per mille[50]", NULL, { FACTOR,1 } },
-		{ "factoriniticks", 300, 1, 1000000, "initial effort in millions[300]", NULL, { FACTOR,1 } },
-		{ "factorsize", 5, 2, 2000000000, "clause size limit[5]", NULL, { FACTOR,1 } },
-		{ "factorthresh", 7, 0, 100, "delay if ticks smaller thresh* clauses[7]", NULL, { FACTOR,1 } },
+		{ "factorcandrounds", 2, 0, 2000000000, "candidates reduction rounds[2]", {}, { FACTOR,1 } },
+		{ "factorcheck", 1, 0, 2, "API checks that variables have been declared(1 = only with factor on, 2 = always)[1]", {}, { FACTOR,1 } },
+		{ "factordelay", 4, 0, 12, "delay bounded variable addition between eliminations[4]", {}, { FACTOR,1 } },
+		{ "factoreffort", 50, 0, 100000, "relative effort per mille[50]", {}, { FACTOR,1 } },
+		{ "factoriniticks", 300, 1, 1000000, "initial effort in millions[300]", {}, { FACTOR,1 } },
+		{ "factorsize", 5, 2, 2000000000, "clause size limit[5]", {}, { FACTOR,1 } },
+		{ "factorthresh", 7, 0, 100, "delay if ticks smaller thresh* clauses[7]", {}, { FACTOR,1 } },
 		{ "factorunbump", 1, 0, 1, "extension variable with lowest importance[1:as in kissat][true]", trueFalse, { FACTOR,1 } }};
 	parametro += {
 		{ "fastelim", 1, 0, 1, "fast BVE during preprocessing[true]", trueFalse },
-		{ "fastelimbound", 8, 1, 1000, "fast BVE bound during preprocessing[8]", NULL, { FASTELIM,1 } },
-		{ "fastelimclslim", 100, 2, 2000000000, "fast BVE resolvent size limit[1e2]", NULL, { FASTELIM,1 } },
-		{ "fastelimocclim", 100, 1, 2000000000, "fast BVE occurence limit during preprocessing[100]", NULL, { FASTELIM,1 } },
-		{ "fastelimrounds", 4, 1, 512, "number of fastelim rounds[4]", NULL, { FASTELIM,1 } }};
+		{ "fastelimbound", 8, 1, 1000, "fast BVE bound during preprocessing[8]", {}, { FASTELIM,1 } },
+		{ "fastelimclslim", 100, 2, 2000000000, "fast BVE resolvent size limit[1e2]", {}, { FASTELIM,1 } },
+		{ "fastelimocclim", 100, 1, 2000000000, "fast BVE occurence limit during preprocessing[100]", {}, { FASTELIM,1 } },
+		{ "fastelimrounds", 4, 1, 512, "number of fastelim rounds[4]", {}, { FASTELIM,1 } }};
 	parametro += {
 		{ "flush", 0, 0, 1, "flush redundant clauses[false]", trueFalse },
-		{ "flushfactor", 3, 1, 1000, "interval increase[3]", NULL, { FLUSH,1 } },
-		{ "flushint", 100000, 1, 2000000000, "initial limit[1e5]", NULL, { FLUSH,1 } }};
+		{ "flushfactor", 3, 1, 1000, "interval increase[3]", {}, { FLUSH,1 } },
+		{ "flushint", 100000, 1, 2000000000, "initial limit[1e5]", {}, { FLUSH,1 } }};
 	parametro += { "forcephase", 0, 0, 1, "always use initial phase[false]", trueFalse };
-	parametro += { "frat", 0, 0, 2, "1 = frat(lrat), 2 = frat(drat)[0]", NULL };
+	parametro += { "frat", 0, 0, 2, "1 = frat(lrat), 2 = frat(drat)[0]"};
 	parametro += { "idrup", 0, 0, 1, "incremental proof format[false]", trueFalse };
-	parametro += { "ilb", 0, 0, 2, "ILB(incremental lazy backtrack) (0: no, 1 : assumptions only, 2 : everything)[0]", NULL };
+	parametro += { "ilb", 0, 0, 2, "ILB(incremental lazy backtrack) (0: no, 1 : assumptions only, 2 : everything)[0]"};
 	parametro += {
-		{ "incdecay", 1, 0, 4, "decay clauses when doing incremental clauses[1]", NULL },
-		{ "incdecayint", 1000000, 1, 2000000000, "decay interval when doing incremental clauses[1e6]", NULL }};
+		{ "incdecay", 1, 0, 4, "decay clauses when doing incremental clauses[1]"},
+		{ "incdecayint", 1000000, 1, 2000000000, "decay interval when doing incremental clauses[1e6]" }};
 	parametro += {
-		{ "inprobeint", 100, 1, 2000000000, "inprobing interval[100]", NULL, { INPROBING, 1 } },
+		{ "inprobeint", 100, 1, 2000000000, "inprobing interval[100]", {}, { INPROBING, 1 } },
 		{ "inprobing", 1, 0, 1, "enable probe inprocessing[true]", trueFalse }};
 	parametro += { "inprocessing", 1, 0, 1, "enable general inprocessing[true]", trueFalse };
 	parametro += {
 		{ "instantiate", 0, 0, 1, "variable instantiation[false]", trueFalse },
-		{ "instantiateclslim", 3, 2, 2000000000, "minimum clause size[3]", NULL, { INSTANTIATE,1 } },
-		{ "instantiateocclim", 1, 1, 2000000000, "maximum occurrence limit[1]", NULL, { INSTANTIATE,1 } },
+		{ "instantiateclslim", 3, 2, 2000000000, "minimum clause size[3]", {}, { INSTANTIATE,1 } },
+		{ "instantiateocclim", 1, 1, 2000000000, "maximum occurrence limit[1]", {}, { INSTANTIATE,1 } },
 		{ "instantiateonce", 1, 0, 1, "instantiate each clause once[true]", trueFalse, { INSTANTIATE,1 } }};
 	parametro += { "lidrup", 0, 0, 1, "linear incremental proof format[false]", trueFalse };
 	parametro += { "lrat", 0, 0, 1, "use LRAT proof format[false]", trueFalse };
@@ -463,62 +181,62 @@ void CCaDiCaL::ResetParametros()
 		{ "luckylate", 1, 0, 1, "lucky phases after preprocessing[true]", trueFalse, { LUCKY, 1 } }};
 	parametro += {
 		{ "minimize", 1, 0, 1, "minimize learned clauses[true]", trueFalse },
-		{ "minimizedepth", 1000, 0, 1000, "minimization depth[1e3]", NULL, { MINIMIZE, 1 } },
+		{ "minimizedepth", 1000, 0, 1000, "minimization depth[1e3]", {}, { MINIMIZE, 1 } },
 		{ "minimizeticks", 1, 0, 1, "increment ticks in minimization[true]", trueFalse, { MINIMIZE, 1 } }};
 	parametro += { "otfs", 1, 0, 1, "on - the - fly self subsumption[true]", trueFalse };
 	parametro += { "phase", 1, 0, 1, "initial phase[true]", trueFalse };
-	parametro += { "preprocessinit", 2000000, 0, 2000000000, "initial preprocessing base limit[2e6]", NULL };
+	parametro += { "preprocessinit", 2000000, 0, 2000000000, "initial preprocessing base limit[2e6]"};
 	parametro += { "preprocesslight", 1, 0, 1, "lightweight preprocessing[true]", trueFalse };
 	parametro += {
 		{ "probe", 1, 0, 1, "failed literal probing[true]", trueFalse },
-		{ "probeeffort", 8, 1, 100000, "relative efficiency per mille[8]", NULL, { PROBE, 1 } },
+		{ "probeeffort", 8, 1, 100000, "relative efficiency per mille[8]", {}, { PROBE, 1 } },
 		{ "probehbr", 1, 0, 1, "learn hyper binary clauses[true]", trueFalse, { PROBE, 1 } },
-		{ "probethresh", 0, 0, 100, "delay if ticks smaller thresh* clauses[0]", NULL, { PROBEHBR, 1 } }};
-	parametro += { "profile", 2, 0, 4, "profiling level[2]", NULL };
+		{ "probethresh", 0, 0, 100, "delay if ticks smaller thresh* clauses[0]", {}, { PROBE, 1 } }};
+	parametro += { "profile", 2, 0, 4, "profiling level[2]"};
 	parametro += { "quiet", 0, 0, 1, "disable all messages[false]", trueFalse };
-	parametro += { "radixsortlim", 32, 0, 2000000000, "radix sort limit[32]", NULL };
+	parametro += { "radixsortlim", 32, 0, 2000000000, "radix sort limit[32]"};
 	parametro += {
 		{ "randec", 0, 0, 1, "random decisions[false]", trueFalse },
 		{ "randecfocused", 1, 0, 1, "random decisions in focused mode[true]", trueFalse, { RANDEC,1 } },
-		{ "randecinit", 1000, 2, 2000000000, "inital random decision interval[1e3]", NULL, { RANDEC,1 } },
-		{ "randecint", 500, 0, 2000000000, "random conflict length[500]", NULL, { RANDEC,1 } },
-		{ "randeclength", 10, 1, 1000000000, "length random decisions phases[10]", NULL, { RANDEC,1 } },
+		{ "randecinit", 1000, 2, 2000000000, "inital random decision interval[1e3]", {}, { RANDEC,1 } },
+		{ "randecint", 500, 0, 2000000000, "random conflict length[500]", {}, { RANDEC,1 } },
+		{ "randeclength", 10, 1, 1000000000, "length random decisions phases[10]", {}, { RANDEC,1 } },
 		{ "randecstable", 0, 0, 1, "random decisions in stable mode[false]", trueFalse, { RANDEC,1 } }};
 	parametro += { "realtime", 0, 0, 1, "real instead of process time[false]", trueFalse };
 	parametro += { "recomputetier", 1, 0, 1, "recompute tiers[true]", trueFalse };
 	parametro += {
 		{ "reduce", 1, 0, 1, "reduce useless clauses[true]", trueFalse },
-		{ "reduceinit", 300, 1, 1000000, "initial interval[300]", NULL, { REDUCE,1 } },
-		{ "reduceint", 25, 2, 1000000, "reduce interval[25]", NULL, { REDUCE,1 } },
-		{ "reduceopt", 1, 0, 2, "0 = prct, 1 = sqrt, 2 = max[1]", NULL, { REDUCE,1 } },
-		{ "reducetarget", 75, 10, 100, "reduce fraction in percent[75]", NULL, { REDUCE,1 } },
-		{ "reducetier1glue", 2, 1, 2000000000, "glue of kept learned clauses[2]", NULL, { REDUCE,1 } },
-		{ "reducetier2glue", 6, 1, 2000000000, "glue of tier two clauses[6]", NULL, { REDUCE,1 } }};
+		{ "reduceinit", 300, 1, 1000000, "initial interval[300]", {}, { REDUCE,1 } },
+		{ "reduceint", 25, 2, 1000000, "reduce interval[25]", {}, { REDUCE,1 } },
+		{ "reduceopt", 1, 0, 2, "0 = prct, 1 = sqrt, 2 = max[1]", {}, { REDUCE,1 } },
+		{ "reducetarget", 75, 10, 100, "reduce fraction in percent[75]", {}, { REDUCE,1 } },
+		{ "reducetier1glue", 2, 1, 2000000000, "glue of kept learned clauses[2]", {}, { REDUCE,1 } },
+		{ "reducetier2glue", 6, 1, 2000000000, "glue of tier two clauses[6]", {}, { REDUCE,1 } }};
 	parametro += {
 		{ "reluctant", 1, 0, 1, "stable reluctant doubling restarts[true]", trueFalse },
-		{ "reluctantint", 1024, 0, 2000000000, "reluctant doubling period[1024]", NULL, { RELUCTANT,1 } },
-		{ "reluctantmax", 1048576, 0, 2000000000, "maximum reluctant doubling period[1048576]", NULL, { RELUCTANT,1 } }};
+		{ "reluctantint", 1024, 0, 2000000000, "reluctant doubling period[1024]", {}, { RELUCTANT,1 } },
+		{ "reluctantmax", 1048576, 0, 2000000000, "maximum reluctant doubling period[1048576]", {}, { RELUCTANT,1 } }};
 	parametro += {
-		{ "rephase", 1, 0, 2, "enable resetting phase(0 = no, 1 = always, 2 = stable - only)[1]", NULL },
-		{ "rephaseint", 1000, 1, 2000000000, "rephase interval[1e3]", NULL, { REPHASE,1 } }};
+		{ "rephase", 1, 0, 2, "enable resetting phase(0 = no, 1 = always, 2 = stable - only)[1]"},
+		{ "rephaseint", 1000, 1, 2000000000, "rephase interval[1e3]", {}, { REPHASE,1 } }};
 	parametro += {
 		{ "report", 0, 0, 1, "enable reporting[false]", trueFalse },
 		{ "reportall", 0, 0, 1, "report even if not successful[false]", trueFalse, { REPORT,1 } },
 		{ "reportsolve", 0, 0, 1, "use solving not process time[false]", trueFalse, { REPORT,1 } }};
 	parametro += {
 		{ "restart", 1, 0, 1, "enable restarts[true]", trueFalse },
-		{ "restartint", 100000, 1, 2000000000, "restart interval[1e5]", NULL, { RESTART,1 } },
-		{ "restartmarginfocused", 10, 0, 25, "focused slow fast margin in percent[10]", NULL, { RESTART,1 } },
-		{ "restartmarginstable", 25, 0, 25, "stable slow fast margin in percent[25]", NULL, { RESTART,1 } },
+		{ "restartint", 100000, 1, 2000000000, "restart interval[1e5]", {}, { RESTART,1 } },
+		{ "restartmarginfocused", 10, 0, 25, "focused slow fast margin in percent[10]", {}, { RESTART,1 } },
+		{ "restartmarginstable", 25, 0, 25, "stable slow fast margin in percent[25]", {}, { RESTART,1 } },
 		{ "restartreusetrail", 1, 0, 1, "enable trail reuse[true]", trueFalse, { RESTART,1 } }};
-	parametro += { "restoreall", 0, 0, 2, "restore all clauses(2 = really)[0]", NULL };
+	parametro += { "restoreall", 0, 0, 2, "restore all clauses(2 = really)[0]"};
 	parametro += { "restoreflush", 0, 0, 1, "remove satisfied clauses[false]", trueFalse };
 	parametro += { "reverse", 0, 0, 1, "reverse variable ordering[false]", trueFalse };
 	parametro += {
 		{ "score", 1, 0, 1, "use EVSIDS scores[true]", trueFalse },
-		{ "scorefactor", 950, 500, 1000, "score factor per mille[950]", NULL, { SCORE,1 } }};
+		{ "scorefactor", 950, 500, 1000, "score factor per mille[950]", {}, { SCORE,1 } }};
 	parametro += {
-		{ "shrink", 3, 0, 3, "shrink conflict clause(1 = binary - only, 2 = minimize - on - pulling, 3 = full)[3]", NULL },
+		{ "shrink", 3, 0, 3, "shrink conflict clause(1 = binary - only, 2 = minimize - on - pulling, 3 = full)[3]"},
 		{ "shrinkreap", 1, 0, 1, "use a reap for shrinking[true]", trueFalse, { SHRINK,1 } }};
 	parametro += {
 		{ "shuffle", 0, 0, 1, "shuffle variables[false]", trueFalse },
@@ -527,79 +245,79 @@ void CCaDiCaL::ResetParametros()
 		{ "shufflescores", 1, 0, 1, "shuffle variable scores[true]", trueFalse, { SHUFFLE,1 } }};
 	parametro += {
 		{ "stabilize", 1, 0, 1, "enable stabilizing phases[true]", trueFalse },
-		{ "stabilizeinit", 1000, 1, 2000000000, "stabilizing interval[1e3]", NULL, { STABILIZE,1 } },
+		{ "stabilizeinit", 1000, 1, 2000000000, "stabilizing interval[1e3]", {}, { STABILIZE,1 } },
 		{ "stabilizeonly", 0, 0, 1, "only stabilizing phases[false]", trueFalse, { STABILIZE,1 } }};
 	parametro += { "stats", 0, 0, 1, "print all statistics at the end of the run[false]", trueFalse };
 	parametro += { "stubbornIOfocused", 0, 0, 1, "force phases to I / O in focused mode every once in a while (requires rephase == 2)[false]", trueFalse };
 	parametro += {
 		{ "subsume", 1, 0, 1, "enable clause subsumption[true]", trueFalse },
-		{ "subsumebinlim", 10000, 0, 2000000000, "watch list length limit[1e4]", NULL, { SUBSUME,1 } },
-		{ "subsumeclslim", 100, 0, 2000000000, "clause length limit[1e2]", NULL, { SUBSUME,1 } },
-		{ "subsumeeffort", 1000, 1, 100000, "relative efficiency per mille[1e3]", NULL, { SUBSUME,1 } },
+		{ "subsumebinlim", 10000, 0, 2000000000, "watch list length limit[1e4]", {}, { SUBSUME,1 } },
+		{ "subsumeclslim", 100, 0, 2000000000, "clause length limit[1e2]", {}, { SUBSUME,1 } },
+		{ "subsumeeffort", 1000, 1, 100000, "relative efficiency per mille[1e3]", {}, { SUBSUME,1 } },
 		{ "subsumelimited", 1, 0, 1, "limit subsumption checks[true]", trueFalse, { SUBSUME,1 } },
-		{ "subsumemaxeff", 100000000, 0, 2000000000, "maximum subsuming efficiency[1e8]", NULL, { SUBSUME,1 } },
-		{ "subsumemineff", 0, 0, 2000000000, "minimum subsuming efficiency[0]", NULL, { SUBSUME,1 } },
-		{ "subsumeocclim", 100, 0, 2000000000, "watch list length limit[1e2]", NULL, { SUBSUME,1 } },
+		{ "subsumemaxeff", 100000000, 0, 2000000000, "maximum subsuming efficiency[1e8]", {}, { SUBSUME,1 } },
+		{ "subsumemineff", 0, 0, 2000000000, "minimum subsuming efficiency[0]", {}, { SUBSUME,1 } },
+		{ "subsumeocclim", 100, 0, 2000000000, "watch list length limit[1e2]", {}, { SUBSUME,1 } },
 		{ "subsumestr", 1, 0, 1, "subsume strengthen[true]", trueFalse, { SUBSUME,1 } }};
 	parametro += {
 		{ "sweep", 1, 0, 1, "enable SAT sweeping[true]", trueFalse },
-		{ "sweepclauses", 1024, 0, 2000000000, "environment clauses[1024]", NULL, { SWEEP,1 } },
+		{ "sweepclauses", 1024, 0, 2000000000, "environment clauses[1024]", {}, { SWEEP,1 } },
 		{ "sweepcomplete", 0, 0, 1, "run SAT sweeping to completion[false]", trueFalse, { SWEEP,1 } },
 		{ "sweepcountbinary", 1, 0, 1, "count binaries to environment[true]", trueFalse, { SWEEP,1 } },
-		{ "sweepdepth", 2, 0, 2000000000, "environment depth[2]", NULL, { SWEEP,1 } },
-		{ "sweepeffort", 100, 0, 10000, "relative effort in ticks per mille[1e2]", NULL, { SWEEP,1 } },
-		{ "sweepfliprounds", 1, 0, 2000000000, "flipping rounds[1]", NULL, { SWEEP,1 } },
-		{ "sweepmaxclauses", 300000, 2, 2000000000, "maximum environment clauses[3e5]", NULL, { SWEEP,1 } },
-		{ "sweepmaxdepth", 3, 1, 2000000000, "maximum environment depth[3]", NULL, { SWEEP,1 } },
-		{ "sweepmaxvars", 8192, 2, 2000000000, "maximum environment variables[8192]", NULL, { SWEEP,1 } },
+		{ "sweepdepth", 2, 0, 2000000000, "environment depth[2]", {}, { SWEEP,1 } },
+		{ "sweepeffort", 100, 0, 10000, "relative effort in ticks per mille[1e2]", {}, { SWEEP,1 } },
+		{ "sweepfliprounds", 1, 0, 2000000000, "flipping rounds[1]", {}, { SWEEP,1 } },
+		{ "sweepmaxclauses", 300000, 2, 2000000000, "maximum environment clauses[3e5]", {}, { SWEEP,1 } },
+		{ "sweepmaxdepth", 3, 1, 2000000000, "maximum environment depth[3]", {}, { SWEEP,1 } },
+		{ "sweepmaxvars", 8192, 2, 2000000000, "maximum environment variables[8192]", {}, { SWEEP,1 } },
 		{ "sweeprand", 0, 0, 1, "randomize sweeping environment[false]", trueFalse, { SWEEP,1 } },
-		{ "sweepthresh", 5, 0, 100, "delay if ticks smaller thresh* clauses[5]", NULL, { SWEEP,1 } },
-		{ "sweepvars", 256, 0, 2000000000, "environment variables[256]", NULL, { SWEEP,1 } }};
-	parametro += { "target", 1, 0, 2, "target phases(1 = stable only)[1]", NULL };
-	parametro += { "terminateint", 10, 1, 10000, "termination check interval[10]", NULL };
+		{ "sweepthresh", 5, 0, 100, "delay if ticks smaller thresh* clauses[5]", {}, { SWEEP,1 } },
+		{ "sweepvars", 256, 0, 2000000000, "environment variables[256]", {}, { SWEEP,1 } }};
+	parametro += { "target", 1, 0, 2, "target phases(1 = stable only)[1]"};
+	parametro += { "terminateint", 10, 1, 10000, "termination check interval[10]"};
 	parametro += {
 		{ "ternary", 1, 0, 1, "hyper ternary resolution[true]", trueFalse },
-		{ "ternaryeffort", 8, 1, 100000, "relative efficiency per mille[8]", NULL, { TERNARY,1 } },
-		{ "ternarymaxadd", 1000, 0, 10000, "max clauses added in percent[1e3]", NULL, { TERNARY,1 } },
-		{ "ternaryocclim", 100, 1, 2000000000, "ternary occurrence limit[1e2]", NULL, { TERNARY,1 } },
-		{ "ternaryrounds", 2, 1, 16, "maximum ternary rounds[2]", NULL, { TERNARY,1 } },
-		{ "ternarythresh", 6, 0, 100, "delay if ticks smaller thresh* clauses[6]", NULL, { TERNARY,1 } }};
-	parametro += { "tier1limit", 50, 0, 100, "limit of tier1 usage in percentage[50]", NULL };
-	parametro += { "tier1minglue", 0, 0, 100, "lowest tier1 limit[0]", NULL };
-	parametro += { "tier2limit", 90, 0, 100, "limit of tier2 usage in percentage[90]", NULL };
-	parametro += { "tier2minglue", 0, 0, 100, "lowest tier2 limit[0]", NULL };
+		{ "ternaryeffort", 8, 1, 100000, "relative efficiency per mille[8]", {}, { TERNARY,1 } },
+		{ "ternarymaxadd", 1000, 0, 10000, "max clauses added in percent[1e3]", {}, { TERNARY,1 } },
+		{ "ternaryocclim", 100, 1, 2000000000, "ternary occurrence limit[1e2]", {}, { TERNARY,1 } },
+		{ "ternaryrounds", 2, 1, 16, "maximum ternary rounds[2]", {}, { TERNARY,1 } },
+		{ "ternarythresh", 6, 0, 100, "delay if ticks smaller thresh* clauses[6]", {}, { TERNARY,1 } }};
+	parametro += { "tier1limit", 50, 0, 100, "limit of tier1 usage in percentage[50]"};
+	parametro += { "tier1minglue", 0, 0, 100, "lowest tier1 limit[0]"};
+	parametro += { "tier2limit", 90, 0, 100, "limit of tier2 usage in percentage[90]"};
+	parametro += { "tier2minglue", 0, 0, 100, "lowest tier2 limit[0]"};
 	parametro += {
 		{ "transred", 1, 0, 1, "transitive reduction of BIG[true]", trueFalse },
-		{ "transredeffort", 100, 1, 100000, "relative efficiency per mille[1e2]", NULL, { TRANSRED,1 } },
-		{ "transredmaxeff", 1000000000, 0, 2000000000, "maximum[1e9]", NULL, { TRANSRED,1 } },
-		{ "transredmineff", 0, 0, 2000000000, "minimum efficiency[0]", NULL, { TRANSRED,1 } }};
-	parametro += { "verbose", 0, 0, 3, "more verbose messages[0]", NULL };
-	parametro += { "veripb", 0, 0, 4, "odd = check - deletions, > 2 drat[0]", NULL };
+		{ "transredeffort", 100, 1, 100000, "relative efficiency per mille[1e2]", {}, { TRANSRED,1 } },
+		{ "transredmaxeff", 1000000000, 0, 2000000000, "maximum[1e9]", {}, { TRANSRED,1 } },
+		{ "transredmineff", 0, 0, 2000000000, "minimum efficiency[0]", {}, { TRANSRED,1 } }};
+	parametro += { "verbose", 0, 0, 3, "more verbose messages[0]"};
+	parametro += { "veripb", 0, 0, 4, "odd = check - deletions, > 2 drat[0]"};
 	parametro += {
 		{ "vivify", 1, 0, 1, "vivification[true]", trueFalse },
 		{ "vivifycalctier", 0, 0, 1, "recalculate tier limits[false]", trueFalse, { VIVIFY,1 } },
 		{ "vivifydemote", 0, 0, 1, "demote irredundant or delete directly[false]", trueFalse, { VIVIFY,1 } },
-		{ "vivifyefoort", 50, 0, 100000, "overall efficiency per mille[50]", NULL, { VIVIFY,1 } },
+		{ "vivifyefoort", 50, 0, 100000, "overall efficiency per mille[50]", {}, { VIVIFY,1 } },
 		{ "vivifyflush", 1, 0, 1, "flush subsumed before vivification rounds[true]", trueFalse, { VIVIFY,1 } },
 		{ "vivifyinst", 1, 0, 1, "instantiate last literal when vivify[true]", trueFalse, { VIVIFY,1 } },
 		{ "vivifyirred", 1, 0, 1, "vivification of irredundant clauses[true]", trueFalse, { VIVIFY,1 } },
-		{ "vivifyirredeff", 3, 1, 100, "irredundant efficiency per mille[3]", NULL, { VIVIFY,1 } },
-		{ "vivifyonce", 0, 0, 2, "vivify once : 1 = red, 2 = red + irr[0]", NULL, { VIVIFY,1 } },
-		{ "vivifyretry", 0, 0, 5, "re - vivify clause if vivify was successful[0]", NULL, { VIVIFY,1 } },
-		{ "vivifyschedmax", 5000, 10, 2000000000, "maximum schedule size[5e3]", NULL, { VIVIFY,1 } },
-		{ "vivifythresh", 20, 0, 100, "delay if ticks smaller thresh* clauses[20]", NULL, { VIVIFY,1 } },
+		{ "vivifyirredeff", 3, 1, 100, "irredundant efficiency per mille[3]", {}, { VIVIFY,1 } },
+		{ "vivifyonce", 0, 0, 2, "vivify once : 1 = red, 2 = red + irr[0]", {}, { VIVIFY,1 } },
+		{ "vivifyretry", 0, 0, 5, "re - vivify clause if vivify was successful[0]", {}, { VIVIFY,1 } },
+		{ "vivifyschedmax", 5000, 10, 2000000000, "maximum schedule size[5e3]", {}, { VIVIFY,1 } },
+		{ "vivifythresh", 20, 0, 100, "delay if ticks smaller thresh* clauses[20]", {}, { VIVIFY,1 } },
 		{ "vivifytier1", 1, 0, 1, "vivification tier1[true]", trueFalse, { VIVIFY,1 } },
-		{ "vivifytier1eff", 4, 0, 100, "relative tier1 effort[4]", NULL, { VIVIFY,1 } },
+		{ "vivifytier1eff", 4, 0, 100, "relative tier1 effort[4]", {}, { VIVIFY,1 } },
 		{ "vivifytier2", 1, 0, 1, "vivification tier2[true]", trueFalse, { VIVIFY,1 } },
-		{ "vivifytier2eff", 2, 1, 100, "relative tier2 effort[2]", NULL, { VIVIFY,1 } },
+		{ "vivifytier2eff", 2, 1, 100, "relative tier2 effort[2]", {}, { VIVIFY,1 } },
 		{ "vivifytier3", 1, 0, 1, "vivification tier3[true]", trueFalse, { VIVIFY,1 } },
-		{ "vivifytier3eff", 1, 1, 100, "relative tier3 effort[1]", NULL, { VIVIFY,1 } }};
+		{ "vivifytier3eff", 1, 1, 100, "relative tier3 effort[1]", {}, { VIVIFY,1 } }};
 	parametro += {
 		{ "walk", 1, 0, 1, "enable random walks[true]", trueFalse },
-		{ "walkeffort", 80, 1, 100000, "relative efficiency per mille[80]", NULL, { WALK,1 } },
+		{ "walkeffort", 80, 1, 100000, "relative efficiency per mille[80]", {}, { WALK,1 } },
 		{ "walkfullocc", 0, 0, 1, "use Kissat's full occurrences instead of the single watched [false]", trueFalse, { WALK,1 } },
-		{ "walkmaxeff", 10000000, 0, 2000000000, "maximum efficiency(in 1e3 ticks)[1e7]", NULL, { WALK,1 } },
-		{ "walkmineff", 0, 0, 10000000, "minimum efficiency[0]", NULL, { WALK,1 } },
+		{ "walkmaxeff", 10000000, 0, 2000000000, "maximum efficiency(in 1e3 ticks)[1e7]", {}, { WALK,1 } },
+		{ "walkmineff", 0, 0, 10000000, "minimum efficiency[0]", {}, { WALK,1 } },
 		{ "walknonstable", 1, 0, 1, "walk in non - stabilizing phase[true]", trueFalse, { WALK,1 } },
 		{ "walkredundant", 0, 0, 1, "walk redundant clauses too[false]", trueFalse, { WALK,1 } }};
 	parametro += { "warmup", 1, 0, 1, "warmup before walk using propagation[true]", trueFalse };
@@ -617,21 +335,25 @@ void CCaDiCaL::ResetParametros()
 		{ "IND_RESTARTS", "number of restart events during search", IND_RESTARTS },
 		{ "IND_LEARNED", "number of learned clauses", IND_LEARNED },
 		{ "IND_FIXED", "number of variables permanently fixed by simplification and unit propagation", IND_FIXED },
-		{ "IND_MAXLEVEL", "maximal decision level observed during search", IND_MAXLEVEL }
+		{ "IND_MAXLEVEL", "maximal decision level observed during search", IND_MAXLEVEL },
+		{ "IND_NUMVARS", "number of variables used in the conversion", IND_NUMVARS },
+		{ "IND_NUMCLAUSES", "number of clauses used in the conversion", IND_NUMCLAUSES }
 	};
-	indAtivo += {IND_MEMORY, IND_PROPAGATIONS, IND_TICKS, IND_RESTARTS, IND_LEARNED, IND_FIXED, IND_MAXLEVEL};
+	indAtivo += {IND_MEMORY, IND_PROPAGATIONS, IND_TICKS, IND_RESTARTS, IND_LEARNED, IND_FIXED, IND_MAXLEVEL,
+		IND_NUMVARS, IND_NUMCLAUSES };
 
-	instancia = { "Instance", 1,1,100000, "ID of the instance (appended to the file name)", NULL };
+	instancia = { "Instance", 1,1,100000, "ID of the instance (appended to the file name)" };
+
+	indicators.Count(indicador.Count()).Reset(0);
 }
 
 
 int CCaDiCaL::ExecutaAlgoritmo()
 {
-	FILE* f;
 	TString resultFile, solFile, cmdSTR, options;
 	int error;
-	resultFile.printf("%s%d.txt", (const char*)ficheiroInstancia, instancia.valor);
-	solFile.printf("%s%d.sol", (const char*)ficheiroInstancia, instancia.valor);
+	resultFile.printf("%s%d.txt", *ficheiroInstancia, instancia.valor);
+	solFile.printf("%s%d.sol", *ficheiroInstancia, instancia.valor);
 	// build options string, with just the non-default parameters
 	// special options with just one - and no space
 	for (auto i : { LOCAL_SEARCH, PREPROCESSING })
@@ -656,21 +378,19 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		if (Parametro(i) != defaultCadical[i])
 			options.printf("--%s=%d ", parametro[i].nome, Parametro(i));
 
-	// clean indicators
-	indicators.Count(indicador.Count());
-	indicators.Reset(0);
 	// setup all parameters that are not default in the launch line
-	cmdSTR.printf("./cadical/build/cadical -t %d -w %s %s %s%d.cnf > %s",
+	cmdSTR.printf("%s -t %d -w %s %s %s%d.cnf > %s",
+		*solver,
 		Parametro(LIMITE_TEMPO),
-		(const char*)solFile,
-		(const char*)options,
-		(const char*)ficheiroInstancia, instancia.valor,
-		(const char*)resultFile);
+		*solFile,
+		*options,
+		*ficheiroInstancia, instancia.valor,
+		*resultFile);
 
 	error = system(cmdSTR); // lauch CaDiCaL solver
 	if (error == -1)
 	{
-		printf("\nError launching CaDiCaL solver\nCommand line: %s", (const char*)cmdSTR);
+		printf("\nError launching CaDiCaL solver\nCommand line: %s", *cmdSTR);
 		return 0;
 	}
 	else {
@@ -690,87 +410,65 @@ int CCaDiCaL::ExecutaAlgoritmo()
 			indicators[IND_RESULTADO] = 0;
 			//printf("Sucesso sem solução\n");
 		}
-		// extract indicators from the last run
-		f = fopen(resultFile, "rt");
-		if (f != NULL) {
-			bool inSolving = false;
-			int maxLevel = 0;
-			char linha[1024];
-			const char* marks[] = {
-				"c total real time since initialization:",
-				"c maximum resident set size of process:",
-				"c conflicts:",
-				"c propagations:",
-				"c ticks:",
-				"c restarts:",
-				"c learned:",
-				"c fixed:"
-			};
-			int indMarks[] = {
-				IND_TEMPO,
-				IND_MEMORY,
-				IND_CONFLICTS,
-				IND_PROPAGATIONS,
-				IND_TICKS,
-				IND_RESTARTS,
-				IND_LEARNED,
-				IND_FIXED,
-				IND_CADICAL
-			};
-			while (fgets(linha, sizeof(linha), f)) {
-				// Detect lines:
-				for (int i = 0; indMarks[i] < IND_CADICAL; i++) {
-					if (strstr(linha, marks[i])) {
-						double valor = atof(linha + strlen(marks[i]) + 1);
-						if (indMarks[i] == IND_TEMPO)
-							valor *= 1000.0; // in milliseconds
-						indicators[indMarks[i]] = (int)(valor + 0.5);
-					}
+		TVector<TString> marks = {
+			"c total real time since initialization:",
+			"c maximum resident set size of process:",
+			"c conflicts:",
+			"c propagations:",
+			"c ticks:",
+			"c restarts:",
+			"c learned:",
+			"c fixed:"
+		};
+		TVector<int> indMarks = {
+			IND_TEMPO,
+			IND_MEMORY,
+			IND_CONFLICTS,
+			IND_PROPAGATIONS,
+			IND_TICKS,
+			IND_RESTARTS,
+			IND_LEARNED,
+			IND_FIXED
+		};
+		int maxLevel = 0;
+		bool inSolving = false;
+		for (auto& linha : resultFile.readLines()) {
+			// Detect lines:
+			for (int i = 0; i < indMarks.Count(); i++) {
+				if (strstr(linha, marks[i])) {
+					double valor = atof(*linha + marks[i].Count() + 1);
+					if (i == 0)
+						valor *= 1000.0; // in milliseconds
+					indicators[indMarks[i]] = (int)(valor + 0.5);
 				}
-				if (strstr(linha, "[ solving ]"))
-					inSolving = true;
-				else if (strstr(linha, "[ result ]"))
-					inSolving = false;
+			}
+			if (strstr(linha, "[ solving ]"))
+				inSolving = true;
+			else if (strstr(linha, "[ result ]"))
+				inSolving = false;
+			if (inSolving && linha[0] == 'c' && isdigit(linha[2])) {
+				double nums[32];
+				if (sscanf(linha, "c %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg",
+					nums, nums + 1, nums + 2, nums + 3, nums + 4, nums + 5, nums + 6,
+					nums + 7, nums + 8, nums + 9, nums + 10, nums + 11, nums + 12) == 13) {
+					if (nums[12] > maxLevel)
+						maxLevel = (int)(nums[12] + 0.5);
+				}
+			}
+		}
+		indicators[IND_MAXLEVEL] = maxLevel;
+		remove(resultFile);
 
-				if (inSolving && linha[0] == 'c' && isdigit(linha[2])) {
-					double nums[32];
-					if (sscanf(linha, "c %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg",
-						nums, nums + 1, nums + 2, nums + 3, nums + 4, nums + 5, nums + 6,
-						nums + 7, nums + 8, nums + 9, nums + 10, nums + 11, nums + 12) == 13) {
-						if (nums[12] > maxLevel)
-							maxLevel = (int)(nums[12] + 0.5);
-					}
+		for (auto& linha : solFile.readLines()) {
+			if (strstr(linha, "v ")) {
+				for (auto& token : linha.tok()) {
+					int var = atoi(*token);
+					if (var != 0)
+						satSol += var;
 				}
 			}
-			indicators[IND_MAXLEVEL] = maxLevel;
-			// process the file and extract indicators and solution
-			fclose(f);
-			remove(resultFile);
 		}
-		f = fopen(solFile, "rt");
-		if (f != NULL) {
-			// read solution
-			char linha[1024];
-			satSol = {};
-			while (!feof(f)) {
-				if (fgets(linha, sizeof(linha), f) != NULL) {
-					//printf("%s", linha);
-					if (strstr(linha, "v ")) {
-						char* pch;
-						pch = strtok(linha, " ");
-						pch = strtok(NULL, " ");
-						while (pch != NULL) {
-							int var = atoi(pch);
-							if (var != 0)
-								satSol += var;
-							pch = strtok(NULL, " ");
-						}
-					}
-				}
-			}
-			fclose(f);
-			remove(solFile);
-		}
+		remove(solFile);
 	}
 	return 1;
 }
@@ -1131,4 +829,33 @@ int64_t CCaDiCaL::Indicador(int id)
 	if (id <= indicators.Count())
 		return indicators[id];
 	return TProcura::Indicador(id);
+}
+
+// At least one variable is true
+TVector<TString> CCaDiCaL::AtLeastOne(const TVector<int>& vars) {
+	TString clause;
+	for (auto var : vars)
+		clause.printf("%d ", var);
+	clause.printf("0");
+	return { clause };
+}
+
+// At most one variable is true
+TVector<TString> CCaDiCaL::AtMostOne(const TVector<int>& vars) {
+	TVector<TString> result;
+	// at most one should be true
+	for (int i = 0; i < vars.Count(); i++)
+		for (int j = i + 1; j < vars.Count(); j++)
+			result += TString().printf("%d %d 0", -vars[i], -vars[j]);
+	return result;
+}
+
+
+
+/// mostrar a solução satSol
+void CCaDiCaL::MostrarSolucao() {
+	// forma básica, mostra só positivos
+	for (auto var : satSol)
+		if (var > 0)
+			printf("%d ", (int)var);
 }

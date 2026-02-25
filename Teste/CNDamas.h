@@ -11,6 +11,7 @@ public:
 	CNDamas() {}
     ~CNDamas() {}
 
+
 	/// Reset existing parameters of NDamas.
     void ResetParametros();
 	/// Convert to SAT, execute CaDiCaL, extract solution, check.
@@ -29,5 +30,5 @@ protected:
 
 private:
 	// id de uma casa
-	int Casa(int linha, int coluna) { return linha * instancia.valor + coluna + 1; }
+	int Casa(int linha, int coluna) { return Var(TString().printf("q %d %d",linha,coluna)); }
 };

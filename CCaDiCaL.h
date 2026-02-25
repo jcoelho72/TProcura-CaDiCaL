@@ -10,7 +10,7 @@
 class CCaDiCaL : public TProcura
 {
 public:
-    CCaDiCaL() {}
+    CCaDiCaL() { ResetHashtable(); }
     ~CCaDiCaL() {}
 
 	TVector<int64_t> indicators; ///< Vector to store indicators extracted from the last run.
@@ -18,6 +18,12 @@ public:
 	// SAT solution, a set of integers
 	TVector<int64_t> satSol;
 	static TString solver; // caminho para o executável do solver
+	
+	TVector<TString> variaveis; // nomes das variáveis 
+	TVector<TVector<int>> hashtable; // buckets 
+
+	int nextSCID = 0;
+
 
 	/// Reset existing parameters of CaDiCaL.
     void ResetParametros();
@@ -31,16 +37,24 @@ public:
 	/// mostrar a solução satSol
 	void MostrarSolucao();
 
-	// conversion reusable
+	// IDs e variáveis
+	TString Var(int ID);
+	int Var(TString var);
+	void ResetHashtable(int tamanho = 10007); // tamanho: número primo grande
+
+	// Restrictions (organize and complet later):
 	// At least one variable is true
 	TVector<TString> AtLeastOne(const TVector<int>& vars);
-	// At most one variable is true
-	TVector<TString> AtMostOne(const TVector<int>& vars);
+	// At most one variable is true (quadratic)
+	TVector<TString> AtMostOne(const TVector<int>& vars, bool sequentialCounter = false);
 	// Exactly one variable is true
-	TVector<TString> ExactlyOne(const TVector<int>& vars) {
-		return AtLeastOne(vars) += AtMostOne(vars);
+	TVector<TString> ExactlyOne(const TVector<int>& vars, bool sequentialCounter = false) {
+		return AtLeastOne(vars) += AtMostOne(vars, sequentialCounter);
 	}
-
+	// At most K (Sequential Counter) -- add new variables 
+	TVector<TString> AtMostK(const TVector<int>& vars, int K = 1);
+	// unary code: exactly one variable is true, with O(n) clauses
+	TVector<TString> CreateUnaryVar(const TString& prefix, int min, int max);
 };
 
 

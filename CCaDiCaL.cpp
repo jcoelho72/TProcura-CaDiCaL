@@ -378,6 +378,8 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		if (Parametro(i) != defaultCadical[i])
 			options.printf("--%s=%d ", parametro[i].nome, Parametro(i));
 
+	//system(TString().printf("cat %s%d.cnf", *ficheiroInstancia, instancia.valor)); // print parameters to be used in the run
+
 	// setup all parameters that are not default in the launch line
 	cmdSTR.printf("%s -t %d -w %s %s %s%d.cnf > %s",
 		*solver,
@@ -458,7 +460,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		}
 		indicators[IND_MAXLEVEL] = maxLevel;
 		remove(resultFile);
-
+		satSol = {};
 		for (auto& linha : solFile.readLines()) {
 			if (strstr(linha, "v ")) {
 				for (auto& token : linha.tok()) {
@@ -841,12 +843,67 @@ TVector<TString> CCaDiCaL::AtLeastOne(const TVector<int>& vars) {
 }
 
 // At most one variable is true
-TVector<TString> CCaDiCaL::AtMostOne(const TVector<int>& vars) {
+TVector<TString> CCaDiCaL::AtMostOne(const TVector<int>& vars, bool sequentialCounter) {
 	TVector<TString> result;
-	// at most one should be true
-	for (int i = 0; i < vars.Count(); i++)
-		for (int j = i + 1; j < vars.Count(); j++)
-			result += TString().printf("%d %d 0", -vars[i], -vars[j]);
+	if (!sequentialCounter) {
+		// at most one should be true
+		for (int i = 0; i < vars.Count(); i++)
+			for (int j = i + 1; j < vars.Count(); j++)
+				result += TString().printf("%d %d 0", -vars[i], -vars[j]);
+	}
+	else if (sequentialCounter) {
+		result = AtMostK(vars);
+	}
+	return result;
+}
+
+// At most K (Sequential Counter) -- add new variables 
+TVector<TString> CCaDiCaL::AtMostK(const TVector<int>& vars, int K) {
+	TVector<TString> result;
+	int id = nextSCID++;     // ID único para esta restrição
+	int n = vars.Count();
+
+	if (n == 0 || K <= 0) {
+		// AtMost0: todas as variáveis têm de ser falsas
+		for (int x : vars)
+			result += TString().printf("-%d 0", x);
+		return result;
+	}
+
+	// criar variáveis auxiliares s(i,j)
+	auto S = [&](int i, int j) {
+		return Var(TString().printf("sc %d %d %d", id, i, j));
+		};
+
+	// Sequential Counter (Sinz 2005)
+	// s(i,j) = 1 se entre x1..xi existem pelo menos j verdadeiros
+
+	// 1. Para cada i: ¬x_i ∨ s(i,1)
+	for (int i = 1; i <= n; i++) {
+		int xi = vars[i - 1];
+		result += TString().printf("-%d %d 0", xi, S(i, 1));
+	}
+
+	// 2. Propagação vertical: ¬s(i-1,j) ∨ s(i,j)
+	for (int i = 2; i <= n; i++) {
+		for (int j = 1; j <= K; j++) {
+			result += TString().printf("-%d %d 0", S(i - 1, j), S(i, j));
+		}
+	}
+
+	// 3. Propagação diagonal: ¬x_i ∨ ¬s(i-1,j-1) ∨ s(i,j)
+	for (int i = 2; i <= n; i++) {
+		int xi = vars[i - 1];
+		for (int j = 2; j <= K+1; j++) {
+			result += TString().printf("-%d -%d %d 0", xi, S(i - 1, j - 1), S(i, j));
+		}
+	}
+
+	// 4. Proibir overflow: ¬s(i,K+1)
+	for (int i = 1; i <= n; i++) {
+		result += TString().printf("-%d 0", S(i, K + 1));
+	}
+
 	return result;
 }
 
@@ -859,3 +916,51 @@ void CCaDiCaL::MostrarSolucao() {
 		if (var > 0)
 			printf("%d ", (int)var);
 }
+
+// IDs e variáveis
+TString CCaDiCaL::Var(int ID) {
+	if (ID >= 0 && ID < variaveis.Count())
+		return variaveis[ID];
+	return TString("WVI"); // wrong variable index
+}
+
+int CCaDiCaL::Var(TString var) {
+	int hashID = var.Hash() % hashtable.Count();
+	// localizar a variável
+	for (auto& item : hashtable[hashID])
+		if (variaveis[item] == var)
+			return item;
+
+	// não existe, criar
+	variaveis += var;
+	hashtable[hashID] += (variaveis.Count() - 1);
+	return variaveis.Count() - 1;
+}
+
+void CCaDiCaL::ResetHashtable(int tamanho) {
+	variaveis.Count(0);
+	hashtable.Count(tamanho);
+	for (auto& bucket : hashtable)
+		bucket.Count(0);
+	Var("WVI"); // adicionar uma variável para o ID começar em 1
+}
+
+TVector<TString> CCaDiCaL::CreateUnaryVar(const TString& prefix, int min, int max) {
+	TVector<TString> result;
+
+	// criar variáveis unárias
+	TVector<int> u;
+	for (int j = min; j <= max + 1; j++) 
+		u += Var(TString().printf("%s %d", *prefix, j));
+
+	// monotonia: u[j] ∨ ¬u[j+1]
+	for (int j = 0; j < u.Count() - 1; j++) 
+		result += TString().printf("%d -%d 0", u[j], u[j + 1]);
+
+	// fixar a primeira a 1 e a última a 0
+	result += TString().printf("%d 0", u.First()); // u[min] = 1
+	result += TString().printf("-%d 0", u.Last()); // u[max+1] = 0
+
+	return result;
+}
+

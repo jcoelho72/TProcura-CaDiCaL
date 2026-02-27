@@ -453,13 +453,15 @@ int CCaDiCaL::ExecutaAlgoritmo()
 				if (sscanf(linha, "c %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg",
 					nums, nums + 1, nums + 2, nums + 3, nums + 4, nums + 5, nums + 6,
 					nums + 7, nums + 8, nums + 9, nums + 10, nums + 11, nums + 12) == 13) {
-					if (nums[12] > maxLevel)
-						maxLevel = (int)(nums[12] + 0.5);
+					if (nums[2] > maxLevel)
+						maxLevel = (int)(nums[2] + 0.5);
 				}
 			}
 		}
 		indicators[IND_MAXLEVEL] = maxLevel;
-		remove(resultFile);
+
+		if(Parametro(NIVEL_DEBUG) < DETALHE)
+			remove(resultFile);
 		satSol = {};
 		for (auto& linha : solFile.readLines()) {
 			if (strstr(linha, "v ")) {
@@ -470,7 +472,8 @@ int CCaDiCaL::ExecutaAlgoritmo()
 				}
 			}
 		}
-		remove(solFile);
+		if (Parametro(NIVEL_DEBUG) < DETALHE)
+			remove(solFile);
 	}
 	return 1;
 }

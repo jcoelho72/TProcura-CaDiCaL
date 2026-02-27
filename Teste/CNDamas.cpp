@@ -51,7 +51,8 @@ int CNDamas::ExecutaAlgoritmo()
 		MostrarSolucao();
 	}
 
-	remove(ficheiro); // apagar ficheiro CNF
+	if (Parametro(NIVEL_DEBUG) < DETALHE)
+		remove(ficheiro); // apagar ficheiro CNF
 
 	return 1;
 }
@@ -64,6 +65,11 @@ TVector<TString> CNDamas::SATConverter(int metodo) {
 	cnf += TString().printf("c conversão %d damas para CNF, método %d.", N, metodo);
 	// número de variáveis e cláusulas, a atualizar no final 
 	cnf += TString();
+	// criação das variáveis q(i,j) para indicar se há uma dama na casa (i,j)
+	for (int i = 0; i < N; i++) 
+		for (int j = 0; j < N; j++) 
+			Var(TString().printf("q %d %d", i, j));
+
 	if (metodo <= 1) {
 		// uma dama por linha / coluna
 		for (int i = 0; i < N; i++) {

@@ -352,8 +352,8 @@ int CCaDiCaL::ExecutaAlgoritmo()
 {
 	TString resultFile, solFile, cmdSTR, options;
 	int error;
-	resultFile.printf("%s%d.txt", *ficheiroInstancia, instancia.valor);
-	solFile.printf("%s%d.sol", *ficheiroInstancia, instancia.valor);
+	resultFile.printf("%s%d.txt", *ficheiroInstancia, mpiID);
+	solFile.printf("%s%d.sol", *ficheiroInstancia, mpiID);
 	// build options string, with just the non-default parameters
 	// special options with just one - and no space
 	for (auto i : { LOCAL_SEARCH, PREPROCESSING })
@@ -831,7 +831,7 @@ non-compressed file reading if the signature does not match.
 
 int64_t CCaDiCaL::Indicador(int id)
 {
-	if (id <= indicators.Count())
+	if (id < indicators.Count())
 		return indicators[id];
 	return TProcura::Indicador(id);
 }

@@ -39,16 +39,18 @@ int CNDamas::ExecutaAlgoritmo()
 	// executar cadical
 	CCaDiCaL::ExecutaAlgoritmo();
 
-	// verificar solução
-	if (VerificarSolucao(satSol, Parametro(NDAMAS_METODO))) {
-		if (Parametro(NIVEL_DEBUG) > ATIVIDADE) {
-			printf("\nSolução válida!");
+	if (indicators[IND_RESULTADO] == 1) {
+		// verificar solução
+		if (VerificarSolucao(satSol, Parametro(NDAMAS_METODO))) {
+			if (Parametro(NIVEL_DEBUG) > ATIVIDADE) {
+				printf("\nSolução válida!");
+				MostrarSolucao();
+			}
+		}
+		else {
+			printf("\nSolução inválida!");
 			MostrarSolucao();
 		}
-	}
-	else {
-		printf("\nSolução inválida!");
-		MostrarSolucao();
 	}
 
 	if (Parametro(NIVEL_DEBUG) < DETALHE)

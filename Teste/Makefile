@@ -9,7 +9,7 @@ CFLAGS_MPI     = -Wall -O3 -DMPI_ATIVO
 
 # Alvos
 TARGET       = NDamas
-SRC          = ../CCadical.cpp *.cpp ../TProcura/*.cpp
+SRC          = ../CCaDiCaL.cpp *.cpp ../TProcura/*.cpp
 
 # Pastas de output
 BINDIR       = bin

@@ -395,7 +395,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		printf("\nError launching CaDiCaL solver\nCommand line: %s", *cmdSTR);
 		return 0;
 	}
-	else {
+	if(WIFEXITED(error)) {
 		error = WEXITSTATUS(error);
 
 		if (error == 10) {
@@ -411,6 +411,10 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		else if (error == 0) {
 			indicators[IND_RESULTADO] = 0;
 			//printf("Sucesso sem solução\n");
+		} 
+		else
+		{
+			indicators[IND_RESULTADO] = -1;
 		}
 		TVector<TString> marks = {
 			"c total real time since initialization:",

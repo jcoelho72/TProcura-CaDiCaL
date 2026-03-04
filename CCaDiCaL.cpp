@@ -372,7 +372,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 			options.printf("--%s=%d ", parametro[i].nome, Parametro(i));
 	// check if is used defined configurations
 	if (Parametro(DEFINED_CONFIGURATIONS) != defaultCadical[DEFINED_CONFIGURATIONS])
-		options.printf("--%s ", parametro[DEFINED_CONFIGURATIONS].nomeValores[Parametro(DEFINED_CONFIGURATIONS)]);
+		options.printf("--%s ", *parametro[DEFINED_CONFIGURATIONS].nomeValores[Parametro(DEFINED_CONFIGURATIONS)]);
 	// add the rest of internal CaDiCaL parameters if used
 	for (int i = ARENA; i < PARAMETROS_CADICAL; i++)
 		if (Parametro(i) != defaultCadical[i])

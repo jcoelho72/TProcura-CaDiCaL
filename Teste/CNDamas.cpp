@@ -159,7 +159,7 @@ bool CNDamas::VerificarSolucao(const TVector<int64_t>& satSol, int metodo) {
 		if (countLinha != 1 || countColuna != 1) {
 			printf("\nErro na linha %d: %d damas, coluna %d: %d damas",
 				i, countLinha, i, countColuna);
-			MostrarSolucao();
+			//MostrarSolucao();
 			return false;
 		}
 	}

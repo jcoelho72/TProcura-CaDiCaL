@@ -49,7 +49,7 @@ int CNDamas::ExecutaAlgoritmo()
 		}
 		else {
 			printf("\nSolução inválida!");
-			MostrarSolucao();
+			indicators[IND_RESULTADO] = 10; // código para indicar que a solução é inválida
 		}
 	}
 

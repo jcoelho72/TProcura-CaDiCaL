@@ -33,7 +33,7 @@ int CNDamas::ExecutaAlgoritmo()
 {
 	// converter para SAT
 	TString ficheiro;
-	ficheiro.printf("%s%d.cnf", *ficheiroInstancia, instancia.valor)
+	ficheiro.printf("%s%d.cnf", *ficheiroInstancia, mpiID)
 		.writeLines(SATConverter(Parametro(NDAMAS_METODO)));
 
 	// executar cadical

@@ -386,7 +386,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		Parametro(LIMITE_TEMPO),
 		*solFile,
 		*options,
-		*ficheiroInstancia, instancia.valor,
+		*ficheiroInstancia, mpiID,
 		*resultFile);
 
 	error = system(cmdSTR); // lauch CaDiCaL solver
@@ -466,7 +466,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		for (auto& linha : solFile.readLines()) {
 			if (strstr(linha, "v ")) {
 				for (auto& token : linha.tok()) {
-					int var = atoi(*token);
+					int var = atoi(token);
 					if (var != 0)
 						satSol += var;
 				}

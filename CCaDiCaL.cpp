@@ -358,25 +358,25 @@ int CCaDiCaL::ExecutaAlgoritmo()
 	// special options with just one - and no space
 	for (auto i : { LOCAL_SEARCH, PREPROCESSING })
 		if (Parametro(i) != defaultCadical[i])
-			options.printf("-%s%d ", parametro[i].nome, Parametro(i));
+			options.printf("-%s%d ", *parametro[i].nome, Parametro(i));
 	// special options of just one -
 	TVector<int> aux;
 	aux += LIMITE_ITERACOES;
 	aux += LIMIT_DECISIONS;
 	for (auto i : aux)
 		if (Parametro(i) != defaultCadical[i])
-			options.printf("-%s %d ", parametro[i].nome, Parametro(i));
+			options.printf("-%s %d ", *parametro[i].nome, Parametro(i));
 	// options for non-default parameters with --
 	for (auto i : { SEMENTE })
 		if (Parametro(i) != defaultCadical[i])
-			options.printf("--%s=%d ", parametro[i].nome, Parametro(i));
+			options.printf("--%s=%d ", *parametro[i].nome, Parametro(i));
 	// check if is used defined configurations
 	if (Parametro(DEFINED_CONFIGURATIONS) != defaultCadical[DEFINED_CONFIGURATIONS])
 		options.printf("--%s ", *parametro[DEFINED_CONFIGURATIONS].nomeValores[Parametro(DEFINED_CONFIGURATIONS)]);
 	// add the rest of internal CaDiCaL parameters if used
 	for (int i = ARENA; i < PARAMETROS_CADICAL; i++)
 		if (Parametro(i) != defaultCadical[i])
-			options.printf("--%s=%d ", parametro[i].nome, Parametro(i));
+			options.printf("--%s=%d ", *parametro[i].nome, Parametro(i));
 
 	//system(TString().printf("cat %s%d.cnf", *ficheiroInstancia, instancia.valor)); // print parameters to be used in the run
 

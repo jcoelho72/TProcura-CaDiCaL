@@ -11,6 +11,7 @@ public:
 	CNDamas() {}
     ~CNDamas() {}
 
+	bool conversaoOK = false; // indica se a conversão para CNF foi bem sucedida
 
 	/// Reset existing parameters of NDamas.
     void ResetParametros();
@@ -31,4 +32,6 @@ protected:
 private:
 	// id de uma casa
 	int Casa(int linha, int coluna) { return Var(TString().printf("q %d %d",linha,coluna)); }
+
+	bool TamanhoOK(TVector<TString> &cnf);
 };

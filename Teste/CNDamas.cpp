@@ -5,7 +5,9 @@
 #include <iterator>
 
 enum EParametrosNDamas {
-	NDAMAS_METODO = PARAMETROS_CADICAL
+	NDAMAS_METODO = PARAMETROS_CADICAL,
+	NDAMAS_MAXVARS,
+	NDAMAS_MAXCLAUSES
 };
 
 
@@ -25,6 +27,17 @@ void CNDamas::ResetParametros()
 		}
 	};
 
+	parametro += {
+		"MaxVars", 1000000, 1000, 1000000000,
+			"Limite máximo de variáveis permitidas na conversão para CNF"
+	};
+
+	parametro += {
+		"MaxClauses", 10000000, 1000, 2000000000,
+			"Limite máximo de cláusulas permitidas na conversão para CNF"
+	};
+
+
 	instancia = { "Instance", 8,4,1000000, "Instância é o número N de damas a colocar num tabuleiro de NxN" };
 }
 
@@ -36,22 +49,25 @@ int CNDamas::ExecutaAlgoritmo()
 	ficheiro.printf("%s%d.cnf", *ficheiroInstancia, mpiID)
 		.writeLines(SATConverter(Parametro(NDAMAS_METODO)));
 
-	// executar cadical
-	CCaDiCaL::ExecutaAlgoritmo();
+	if (conversaoOK) {
+		// executar cadical
+		CCaDiCaL::ExecutaAlgoritmo();
 
-	if (indicators[IND_RESULTADO] == 1) {
-		// verificar solução
-		if (VerificarSolucao(satSol, Parametro(NDAMAS_METODO))) {
-			if (Parametro(NIVEL_DEBUG) > ATIVIDADE) {
-				printf("\nSolução válida!");
-				MostrarSolucao();
+		if (indicators[IND_RESULTADO] == 1) {
+			// verificar solução
+			if (VerificarSolucao(satSol, Parametro(NDAMAS_METODO))) {
+				if (Parametro(NIVEL_DEBUG) > ATIVIDADE) {
+					printf("\nSolução válida!");
+					MostrarSolucao();
+				}
+			}
+			else {
+				printf("\nSolução inválida!");
+				indicators[IND_RESULTADO] = -1; // código para indicar que houve problema
 			}
 		}
-		else {
-			printf("\nSolução inválida!");
-			indicators[IND_RESULTADO] = -1; // código para indicar que houve problema
-		}
-	}
+	} else
+		indicators[IND_RESULTADO] = -2; // código para indicar que houve problema na conversão
 
 	if (Parametro(NIVEL_DEBUG) < DETALHE)
 		remove(ficheiro); // apagar ficheiro CNF
@@ -59,9 +75,17 @@ int CNDamas::ExecutaAlgoritmo()
 	return 1;
 }
 
+bool CNDamas::TamanhoOK(TVector<TString>& cnf) {
+	return variaveis.Count() - 1 <= Parametro(NDAMAS_MAXVARS) && 
+		cnf.Count() - 2 <= Parametro(NDAMAS_MAXCLAUSES);
+}
+
+
 TVector<TString> CNDamas::SATConverter(int metodo) {
 	TVector<TString> cnf;
 	int N = instancia.valor;
+	conversaoOK = false;
+	LimparEstatisticas();
 	ResetHashtable();
 	// comentário indicando o método de conversão
 	cnf += TString().printf("c conversão %d damas para CNF, método %d.", N, metodo);
@@ -74,7 +98,7 @@ TVector<TString> CNDamas::SATConverter(int metodo) {
 
 	if (metodo <= 1) {
 		// uma dama por linha / coluna
-		for (int i = 0; i < N; i++) {
+		for (int i = 0; i < N && TamanhoOK(cnf) && !TempoExcedido(); i++) {
 			TVector<int> varsLinha, varsColuna;
 			for (int j = 0; j < N; j++) {
 				varsLinha += Casa(i, j);
@@ -86,7 +110,7 @@ TVector<TString> CNDamas::SATConverter(int metodo) {
 	}
 	else if (metodo == 2) {
 		// criar variáveis unárias para cada linha, indicando a coluna onde está a dama
-		for (int i = 0; i < N; i++) {
+		for (int i = 0; i < N && TamanhoOK(cnf) && !TempoExcedido(); i++) {
 			TVector<int> varsColuna;
 			cnf += CreateUnaryVar(TString().printf("u %d", i), 0, N - 1);
 			// ligação com variáveis q (não necessário, apenas para manter o teste igual para todas as codificações)
@@ -106,7 +130,7 @@ TVector<TString> CNDamas::SATConverter(int metodo) {
 		}
 	}
 	// uma dama por diagonal esq(\) e dir(/)
-	for (int d = -N + 1; d < 2 * N - 1; d++) {
+	for (int d = -N + 1; d < 2 * N - 1 && TamanhoOK(cnf) && !TempoExcedido(); d++) {
 		TVector<int> varsDiagEsq, varsDiagDir;
 		for (int i = 0; i < N; i++) {
 			{	// diagonal esq(\)
@@ -131,6 +155,8 @@ TVector<TString> CNDamas::SATConverter(int metodo) {
 	indicators[IND_NUMVARS] = variaveis.Count() - 1;
 	indicators[IND_NUMCLAUSES] = cnf.Count() - 2;
 
+	conversaoOK = TamanhoOK(cnf) && !TempoExcedido();
+	
 	return cnf;
 }
 

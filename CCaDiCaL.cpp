@@ -414,7 +414,20 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		} 
 		else
 		{
+			// bug report
 			indicators[IND_RESULTADO] = -1;
+			int errorID = TRand::rand()%10000;
+			TVector<TString> errorData;
+			errorData += TString().printf("CaDiCaL error code: %d", error);
+			errorData += TString().printf("Command line: %s", *cmdSTR);
+			TString().printf("error%d.txt", errorID).writeLines(errorData);
+			// change input and output file to avoid deleting
+			int input = system(TString().printf("mv %s%d.cnf input%d.cnf", *ficheiroInstancia, mpiID, errorID));
+			int output = system(TString().printf("mv %s output%d.txt", *resultFile, errorID));
+			if (WIFEXITED(input) && WIFEXITED(output)) 
+				printf("\nError launching CaDiCaL solver\nCommand line: %s\nInput and output files saved as input%d.cnf and output%d.txt", 
+					*cmdSTR, errorID, errorID);
+			return 0;
 		}
 		TVector<TString> marks = {
 			"c total real time since initialization:",

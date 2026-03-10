@@ -381,7 +381,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 	//system(TString().printf("cat %s%d.cnf", *ficheiroInstancia, instancia.valor)); // print parameters to be used in the run
 
 	// setup all parameters that are not default in the launch line
-	cmdSTR.printf("%s -t %d -w %s %s %s%d.cnf > %s",
+	cmdSTR.printf("%s -t %d -w %s %s %s%d.cnf > %s 2>&1",
 		*solver,
 		Parametro(LIMITE_TEMPO),
 		*solFile,
@@ -395,6 +395,31 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		printf("\nError launching CaDiCaL solver\nCommand line: %s", *cmdSTR);
 		return 0;
 	}
+
+	if (WIFSIGNALED(error)) // crash real
+	{
+		// bug report
+		int sig = WTERMSIG(error);
+		indicators[IND_RESULTADO] = -1;
+		int errorID = TRand::rand() % 10000;
+		TVector<TString> errorData;
+		errorData += TString().printf("CaDiCaL crashed with signal %d", sig);
+		errorData += TString().printf("Command line: %s", *cmdSTR);
+		errorData += TString().printf("Reproduce: %s -t %d %s input%d.cnf",
+			*solver, Parametro(LIMITE_TEMPO), *options, errorID);
+		errorData += TString().printf("Host: %s", getenv("HOSTNAME"));
+		TString().printf("error%d.txt", errorID).writeLines(errorData);
+		bool ok1 = (system(TString().printf("%s --version >> error%d.txt 2>&1", *solver, errorID)) == 0);
+		// change input and output file to avoid deleting
+		bool ok2 = (system(TString().printf("mv %s%d.cnf input%d.cnf", *ficheiroInstancia, mpiID, errorID)) == 0);
+		bool ok3 = (system(TString().printf("mv %s output%d.txt", *resultFile, errorID)) == 0);
+		if (ok1 && ok2 && ok3)
+			printf("\nError launching CaDiCaL solver\nCommand line: %s\nInput and output files saved as input%d.cnf and output%d.txt",
+				*cmdSTR, errorID, errorID);
+		return 0;
+	} 
+	
+	// terminou normalmente
 	if(WIFEXITED(error)) {
 		error = WEXITSTATUS(error);
 
@@ -411,24 +436,11 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		else if (error == 0) {
 			indicators[IND_RESULTADO] = 0;
 			//printf("Sucesso sem solução\n");
-		} 
-		else
-		{
-			// bug report
-			indicators[IND_RESULTADO] = -1;
-			int errorID = TRand::rand()%10000;
-			TVector<TString> errorData;
-			errorData += TString().printf("CaDiCaL error code: %d", error);
-			errorData += TString().printf("Command line: %s", *cmdSTR);
-			TString().printf("error%d.txt", errorID).writeLines(errorData);
-			// change input and output file to avoid deleting
-			int input = system(TString().printf("mv %s%d.cnf input%d.cnf", *ficheiroInstancia, mpiID, errorID));
-			int output = system(TString().printf("mv %s output%d.txt", *resultFile, errorID));
-			if (WIFEXITED(input) && WIFEXITED(output)) 
-				printf("\nError launching CaDiCaL solver\nCommand line: %s\nInput and output files saved as input%d.cnf and output%d.txt", 
-					*cmdSTR, errorID, errorID);
-			return 0;
 		}
+		else // código de saída náo previsto
+			indicators[IND_RESULTADO] = -2;
+
+		
 		TVector<TString> marks = {
 			"c total real time since initialization:",
 			"c maximum resident set size of process:",

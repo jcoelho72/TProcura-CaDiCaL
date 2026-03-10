@@ -381,7 +381,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 	//system(TString().printf("cat %s%d.cnf", *ficheiroInstancia, instancia.valor)); // print parameters to be used in the run
 
 	// setup all parameters that are not default in the launch line
-	cmdSTR.printf("%s -t %d -w %s %s %s%d.cnf > %s 2>&1",
+	cmdSTR.printf("exec %s -t %d -w %s %s %s%d.cnf > %s 2>&1",
 		*solver,
 		Parametro(LIMITE_TEMPO),
 		*solFile,

@@ -390,7 +390,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		*resultFile);
 
 	// valor para indicador não processado
-	indicators[IND_RESULTADO] = -10
+	indicators[IND_RESULTADO] = -10;
 
 	error = system(cmdSTR); // lauch CaDiCaL solver
 	if (WIFEXITED(error) && WEXITSTATUS(error) == 127) {

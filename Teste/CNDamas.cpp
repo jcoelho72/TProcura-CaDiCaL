@@ -155,7 +155,7 @@ TVector<TString> CNDamas::SATConverter(int metodo) {
 	indicators[IND_NUMVARS] = variaveis.Count() - 1;
 	indicators[IND_NUMCLAUSES] = cnf.Count() - 2;
 
-	conversaoOK = TamanhoOK(cnf) && !TempoExcedido();
+	conversaoOK = !TamanhoOK(cnf) || TempoExcedido();
 	
 	return cnf;
 }

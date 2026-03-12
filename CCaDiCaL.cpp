@@ -386,7 +386,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		Parametro(LIMITE_TEMPO),
 		*solFile,
 		*options,
-		*ficheiroInstancia, mpiID,
+		*ficheiroInstancia, instancia.valor,
 		*resultFile);
 
 	// valor para indicador não processado

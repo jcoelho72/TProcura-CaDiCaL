@@ -66,8 +66,13 @@ int CNDamas::ExecutaAlgoritmo()
 				indicators[IND_RESULTADO] = -1; // código para indicar que houve problema
 			}
 		}
-	} else
-		indicators[IND_RESULTADO] = -2; // código para indicar que houve problema na conversão
+	}
+	else {
+		if (TempoExcedido())
+			indicators[IND_RESULTADO] = -2; // código para indicar que houve problema no tempo na conversão
+		else
+			indicators[IND_RESULTADO] = -3; // código para indicar que houve problema no tamanho da conversão
+	}
 
 	if (Parametro(NIVEL_DEBUG) < DETALHE)
 		remove(ficheiro); // apagar ficheiro CNF
@@ -155,7 +160,7 @@ TVector<TString> CNDamas::SATConverter(int metodo) {
 	indicators[IND_NUMVARS] = variaveis.Count() - 1;
 	indicators[IND_NUMCLAUSES] = cnf.Count() - 2;
 
-	conversaoOK = !TamanhoOK(cnf) || TempoExcedido();
+	conversaoOK = TamanhoOK(cnf) && !TempoExcedido();
 	
 	return cnf;
 }

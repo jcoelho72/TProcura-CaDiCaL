@@ -389,9 +389,11 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		*ficheiroInstancia, mpiID,
 		*resultFile);
 
+	// valor para indicador não processado
+	indicators[IND_RESULTADO] = -10
+
 	error = system(cmdSTR); // lauch CaDiCaL solver
-	if (error == -1)
-	{
+	if (WIFEXITED(error) && WEXITSTATUS(error) == 127) {
 		printf("\nError launching CaDiCaL solver\nCommand line: %s", *cmdSTR);
 		return 0;
 	}
@@ -401,7 +403,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		// bug report
 		int sig = WTERMSIG(error);
 		indicators[IND_RESULTADO] = -1;
-		int errorID = TRand::rand() % 10000;
+		int errorID = (TRand::rand() + mpiID) % 10000; 
 		TVector<TString> errorData;
 		errorData += TString().printf("CaDiCaL crashed with signal %d", sig);
 		errorData += TString().printf("Command line: %s", *cmdSTR);
@@ -437,8 +439,6 @@ int CCaDiCaL::ExecutaAlgoritmo()
 			indicators[IND_RESULTADO] = 0;
 			//printf("Sucesso sem solução\n");
 		}
-		else // código de saída náo previsto
-			indicators[IND_RESULTADO] = -2;
 
 		
 		TVector<TString> marks = {

@@ -1,4 +1,3 @@
-
 # TProcura‑CaDiCaL
 Execution of the CaDiCaL SAT solver integrated into the TProcura framework 
 for parametric testing, performance evaluation, and SAT model construction.
@@ -24,17 +23,25 @@ Dependencies
 - TProcura framework
 - MPI (optional, for distributed execution)
 
+Clonning
+```bash
+git clone ....
+```
+
 Building
 ```bash
 make
 ```
-
-Running a simple test
+Running a test
 ```bash
-(exemple with SAT instances from cadical projetct + NDamas, without MPI)
-(give the resulting CSV file as an example)
-(give a results.xlsx file that loads the CSV file and shows how to analyze it in Excel)
+run.sh
 ```
+Exemple with SAT instances from cadical project. In the run.sh the results are saved in
+Resultados folder, in CSV files. 
+
+Check file resultados.xlsx that process the results of CSV files.
+
+(see also results from NDamas...)
 
 ## 3. Using Existing SAT Instances (Mode A)
 This mode is intended for users who already have .cnf files and want to run CaDiCaL 
@@ -42,7 +49,7 @@ under different parameter configurations.
 
 Features
 - Run CaDiCaL with any combination of global parameters (P1–P263).
-- Execute multiple seeds automatically.
+- Execute multiple seeds automatically (P3).
 - Collect solver indicators such as:
   - I1(Resultado): 0 not solved, 1 solved (SAT), 2 solved (UNSAT), -1 crash, -2 timeout in conversion, -3 conversion limits reatch
   - I2(Tempo(ms)): time
@@ -56,7 +63,6 @@ Features
   - I10(IND_MAXLEVEL): maximal decision level observed during search
   - I11(IND_NUMVARS): number of variables used in the conversion
   - I12(IND_NUMCLAUSES): number of clauses used in the conversion
-
 
 Workflow
 - set instances in a directory 

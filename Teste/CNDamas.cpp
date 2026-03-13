@@ -39,6 +39,10 @@ void CNDamas::ResetParametros()
 
 
 	instancia = { "Instance", 8,4,1000000, "Instância é o número N de damas a colocar num tabuleiro de NxN" };
+
+	// para poder correr em MPI e gerar a mesma instância com diferentes parâmetros
+	// é preciso que o prefixo da instância seja único
+	ficheiroInstancia += TString(mpiID);
 }
 
 
@@ -46,7 +50,7 @@ int CNDamas::ExecutaAlgoritmo()
 {
 	// converter para SAT
 	TString ficheiro;
-	ficheiro.printf("%s%d.cnf", *ficheiroInstancia, mpiID)
+	ficheiro.printf("%s%d.cnf", *ficheiroInstancia, instancia.valor)
 		.writeLines(SATConverter(Parametro(NDAMAS_METODO)));
 
 	if (conversaoOK) {

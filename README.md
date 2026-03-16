@@ -1,11 +1,11 @@
 # TProcura‑CaDiCaL
-Execution of the CaDiCaL SAT solver integrated into the TProcura framework 
-for parametric testing, performance evaluation, and SAT model construction.
+Execution of the CaDiCaL SAT solver integrated into the TProcura framework for parametric testing, 
+performance evaluation, and SAT model construction.
 
 ## 1. Overview
 TProcura‑CaDiCaL combines the CaDiCaL SAT solver with the TProcura execution framework, 
 enabling large‑scale parametric experiments, automated result extraction, 
-and optional SAT instance generation. 
+and optional SAT instance generation.
 
 The project supports two main usage scenarios:
 - Users who already have SAT instances and want to evaluate CaDiCaL performance under different parameter configurations.
@@ -34,8 +34,11 @@ Building
 ```bash
 make
 ```
-The Makefile support "release", "debug" and "mpi" targets. The binary goes to bin/<target>/TProcura-CaDiCaL.
-Cadical need to be built separately, following the instructions in its repository. 
+
+The Makefile supports the targets release, debug, and mpi.
+The resulting binary is placed in bin/<target>/TProcura-CaDiCaL.
+
+CaDiCaL must be built separately, following the instructions in its repository.
 
 ## 3. Using Existing SAT Instances
 This mode is intended for users who already have .cnf files and want to run CaDiCaL 
@@ -45,8 +48,8 @@ Features
 - Run CaDiCaL with any combination of global parameters (P1–P263).
 - Execute multiple seeds automatically (P3).
 - Collect solver indicators such as:
-  - I1(Resultado): 0 not solved, 1 solved (SAT), 2 solved (UNSAT), -1 crash, -2 timeout in conversion, -3 conversion limits reatch
-  - I2(Tempo(ms)): time
+  - I1(IND_RESULTADO): 0 not solved, 1 solved (SAT), 2 solved (UNSAT), -1 crash, -2 timeout in conversion, -3 conversion limits reatch
+  - I2(IND_TEMPO): runtime in milliseconds
   - I3(IND_CONFLICTS): number of conflicts
   - I4(IND_MEMORY): maximum resident set size of process (MB)
   - I5(IND_PROPAGATIONS): number of literals propagated, by unit propagation
@@ -59,16 +62,16 @@ Features
   - I12(IND_NUMCLAUSES): number of clauses used in the conversion
 
 Workflow
-- set instances in a directory 
-- configure parameters in the command line
-- use the CSV files (for exemple in an Excel file to analyze the results).
+- Place .cnf instances in a directory
+- Configure parameters in the command line
+- Use the generated CSV files for analysis
 
 Typical use cases
 - Parameter tuning for specific SAT families.
 - Benchmarking CaDiCaL on custom datasets.
 - Large‑scale experiments with MPI.
 
-Exemple, run.sh:
+Exemple (run.sh):
 ```bash
 ...
 # to see full help in arguments use: ./bin/Release/TProcura-CaDiCaL -h
@@ -86,7 +89,7 @@ The two lines shown from the run.sh exemplify the use of TProcura‑CaDiCaL, whe
 The instance number (ID) can be specified as a single value (e.g., 4) or a range (e.g., 1:7), or even a list of values (e.g., 4,8,16,32,64,128).
 The instance ID with the prefix specified in -F, are enough to identify the .cnf files. 
 
-All parameters can be specified with a single value, or a set of values using thne same notation as instance IDs. 
+Parameters can be specified with a single value, or a set of values using thne same notation as instance IDs. 
 In the both examples the parameters start P2=3 P3=1 P9=1, with the effect of changing the default value,
 followed by P3=1:4 x P9=1:4, making all compbinations of P3 and P9, with ranges 1 to 4 in both parameters.
 
@@ -105,28 +108,30 @@ and simple refresh the Excel file to have the results ready to be analysed.
 ## 4. Converting Problems to SAT
 Users who want to model a combinatorial problem and convert it to SAT can extend the CCaDiCaL class.
 
-The CCaDiCaL class provides utilities for:
-- variable creation - mapping between integer IDs and variable names,
+The CCaDiCaL class provides:
+- variable creation and mapping between IDs and names,
 - clause construction,
 - cardinality constraints,
 - unary encodings,
 - and structured SAT modeling.
 
-Extending the framework to create a new SAT encoding:
+Creating a new SAT encoding:
 - Derive a class from CCaDiCaL.
 - Define variables and constraints.
 - Generate the CNF.
 - Execute CaDiCaL through TProcura.
 
-Example of the N‑Queens, is a demonstration of:
+Example: N‑Queens
+
+Demonstrates:
 - variable creation,
 - row/column/diagonal constraints,
 - multiple encoding strategies (quadratic, sequential counter, unary).
 
-Runs:
-- runT1.sh - goal: identify the maximal size of instances that can be processed for each encoding method.
-- runT2.sh - goal: measure the performance of each encoding method, and the best global parameters.
-- runT3a.sh, runT3b.sh, runT3c.sh - goal: identify for each conversion and best configuration, the maximal size of instances that can be processed
+Provided experiment scripts:
+- runT1.sh - goal: identify the maximal instance size solvable for each encoding method.
+- runT2.sh - goal: compare performance of encoding methods (P264) under different CaDiCaL global configurations (P9), using only sizes 8:60 to avoid conversion problems
+- runT3a.sh, runT3b.sh, runT3c.sh - goal: for each encoding method, using its best CaDiCaL configuration, determine the maximal solvable N
 
 runT1.sh:
 ```bash
@@ -146,7 +151,6 @@ that allows all scripts to run in the same time.
 
 runT2.sh:
 ```bash
-...
 srun bin/MPI/NDamas 8:60 -F T2 -R Resultados/damasT2 -M 1 -P P2=1 P9=1 P3=1 \
       P4=60 P3=1:10 x P9=1:4 x P264=0:2
 ```

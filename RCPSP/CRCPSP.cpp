@@ -471,6 +471,9 @@ bool CRCPSP::VerificarSolucao(const TVector<int64_t>& satSol, int metodo) {
 	TVector<int> instants, onProgress, resUsed;
 	resUsed.Count(R()).Reset(0);
 
+	if (Parametro(ALGORITMO) == 0)
+		return true;
+
 	// extract the starting times
 	st = es; // initialize with earliest start times, and update with the solution
 	for (int64_t var : satSol) {

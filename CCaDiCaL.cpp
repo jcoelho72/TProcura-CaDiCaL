@@ -14,7 +14,7 @@ void CCaDiCaL::ResetParametros()
 	TProcura::ResetParametros();
 
 	// changing parameters defined in TProcura
-	parametro[ALGORITMO] = { "Solver",1,1,1,"Solver of a SAT", { "CaDiCaL" } };
+	parametro[ALGORITMO] = { "Solver",1,0,1,"Solver of a SAT", { "No solver", "CaDiCaL" } };
 	//parametro[NIVEL_DEBUG] = { "verbose",0,0,3,"more verbose messages" }; /// cannot be changed since is used to congtrol level of information shown during the run
 	parametro[SEMENTE] = { "seed",0,0,2000000000,"random seed" };
 	parametro[LIMITE_TEMPO] = { "t",10,1,86400,"set wall clock time limit" };
@@ -352,6 +352,8 @@ int CCaDiCaL::ExecutaAlgoritmo()
 {
 	TString resultFile, solFile, cmdSTR, options;
 	int error;
+	if (Parametro(ALGORITMO) == 0)
+		return 0;
 	resultFile.printf("%s%d.txt", *ficheiroInstancia, mpiID);
 	solFile.printf("%s%d.sol", *ficheiroInstancia, mpiID);
 	// build options string, with just the non-default parameters
@@ -403,7 +405,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		// bug report
 		int sig = WTERMSIG(error);
 		indicators[IND_RESULTADO] = -1;
-		int errorID = (TRand::rand() + mpiID) % 10000; 
+		int errorID = (TRand::rand() + mpiID) % 10000;
 		TVector<TString> errorData;
 		errorData += TString().printf("CaDiCaL crashed with signal %d", sig);
 		errorData += TString().printf("Command line: %s", *cmdSTR);
@@ -419,10 +421,10 @@ int CCaDiCaL::ExecutaAlgoritmo()
 			printf("\nError launching CaDiCaL solver\nCommand line: %s\nInput and output files saved as input%d.cnf and output%d.txt",
 				*cmdSTR, errorID, errorID);
 		return 0;
-	} 
-	
+	}
+
 	// terminou normalmente
-	if(WIFEXITED(error)) {
+	if (WIFEXITED(error)) {
 		error = WEXITSTATUS(error);
 
 		if (error == 10) {
@@ -440,7 +442,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 			//printf("Sucesso sem solução\n");
 		}
 
-		
+
 		TVector<TString> marks = {
 			"c total real time since initialization:",
 			"c maximum resident set size of process:",
@@ -489,7 +491,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		}
 		indicators[IND_MAXLEVEL] = maxLevel;
 
-		if(Parametro(NIVEL_DEBUG) < DETALHE)
+		if (Parametro(NIVEL_DEBUG) < DETALHE)
 			remove(resultFile);
 		satSol = {};
 		for (auto& linha : solFile.readLines()) {
@@ -926,7 +928,7 @@ TVector<TString> CCaDiCaL::AtMostK(const TVector<int>& vars, int K) {
 	// 3. Propagação diagonal: ¬x_i ∨ ¬s(i-1,j-1) ∨ s(i,j)
 	for (int i = 2; i <= n; i++) {
 		int xi = vars[i - 1];
-		for (int j = 2; j <= K+1; j++) {
+		for (int j = 2; j <= K + 1; j++) {
 			result += TString().printf("-%d -%d %d 0", xi, S(i - 1, j - 1), S(i, j));
 		}
 	}
@@ -940,13 +942,33 @@ TVector<TString> CCaDiCaL::AtMostK(const TVector<int>& vars, int K) {
 }
 
 
+/// @brief  retorna um vetor de inteiros com a codificação da solução (esta codificação será adicionada aos indicadores, no ficheiro CSV de resultados)
+TVector<int64_t> CCaDiCaL::CodificarSolucao() {
+	TBits sel;
+	TVector<int64_t> result;
+	for (auto var : satSol)
+		if (var > 0)
+			sel.SetBit(var, true);
+	result.Count(sel.Count());
+	for (int i = 0; i < sel.Count(); i++)
+		result.Data()[i] = (int64_t)sel.Data()[i];
+	return result;
+}
 
 /// mostrar a solução satSol
 void CCaDiCaL::MostrarSolucao() {
 	// forma básica, mostra só positivos
+	//for (auto var : satSol)
+	//	if (var > 0)
+	//		printf("%d ", (int)var);
+	// matriz com 100 colunas, e quantas linhas necessárias
+	// cada casa fica com SEL, NSEL ou branco
+	TBits sel;
+	int maxInt = 0;
 	for (auto var : satSol)
 		if (var > 0)
-			printf("%d ", (int)var);
+			sel.SetBit(var, true);
+	printf("%s", *sel.String(2));
 }
 
 // IDs e variáveis
@@ -982,11 +1004,11 @@ TVector<TString> CCaDiCaL::CreateUnaryVar(const TString& prefix, int min, int ma
 
 	// criar variáveis unárias
 	TVector<int> u;
-	for (int j = min; j <= max + 1; j++) 
+	for (int j = min; j <= max + 1; j++)
 		u += Var(TString().printf("%s %d", *prefix, j));
 
 	// monotonia: u[j] ∨ ¬u[j+1]
-	for (int j = 0; j < u.Count() - 1; j++) 
+	for (int j = 0; j < u.Count() - 1; j++)
 		result += TString().printf("%d -%d 0", u[j], u[j + 1]);
 
 	// fixar a primeira a 1 e a última a 0

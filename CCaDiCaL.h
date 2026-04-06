@@ -32,7 +32,7 @@ public:
 	/// return the indicator value after execution.
     int64_t Indicador(int id);
 	/// @brief  retorna um vetor de inteiros com a codificação da solução (esta codificação será adicionada aos indicadores, no ficheiro CSV de resultados)
-	TVector<int64_t> CodificarSolucao() { return satSol; }
+	TVector<int64_t> CodificarSolucao();
 
 	/// mostrar a solução satSol
 	void MostrarSolucao();

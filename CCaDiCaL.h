@@ -55,6 +55,9 @@ public:
 	TVector<TString> AtMostK(const TVector<int>& vars, int K = 1);
 	// unary code: exactly one variable is true, with O(n) clauses
 	TVector<TString> CreateUnaryVar(const TString& prefix, int min, int max);
+
+	// gate = ITE(decision,valueTrue,valueFalse) --- if valueTrue=0 is considered false, if valueFalse=0 is considered true
+	TVector<TString> GateITE(int gate, int decision, int valueTrue, int valueFalse);
 };
 
 

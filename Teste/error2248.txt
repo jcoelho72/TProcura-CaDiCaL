@@ -1,0 +1,5 @@
+CaDiCaL crashed with signal 6
+Command line: exec ./../cadical/build/cadical -t 10 -w G131.sol --seed=10 --sat  G131.cnf > G131.txt 2>&1
+Reproduce: ./../cadical/build/cadical -t 10 --seed=10 --sat  input2248.cnf
+Host: cna0070
+3.0.0

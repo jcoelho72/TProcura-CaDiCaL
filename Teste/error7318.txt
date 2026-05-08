@@ -1,0 +1,5 @@
+CaDiCaL crashed with signal 6
+Command line: exec ./../cadical/build/cadical -t 10 -w 35.sol --seed=77 --arena=0 --backbone=0 --binary=0 --bump=0 --chrono=0 --compact=0 --congruence=0 --decompose=0 --deduplicate=0 --eagersubsume=0 --elim=0 --exteagerreasons=0 --exteagerrecalc=0 --factor=0 --fastelim=0 --inprobing=0 --inprocessing=0 --lucky=0 --minimize=0 --otfs=0 --phase=0 --preprocesslight=0 --probe=0 --recomputetier=0 --reluctant=0 --restart=0 --score=0 --stabilize=0 --subsume=0 --sweep=0 --ternary=0 --transred=0 --vivify=0 --walk=0 --warmup=0  35.cnf > 35.txt 2>&1
+Reproduce: ./../cadical/build/cadical -t 10 --seed=77 --arena=0 --backbone=0 --binary=0 --bump=0 --chrono=0 --compact=0 --congruence=0 --decompose=0 --deduplicate=0 --eagersubsume=0 --elim=0 --exteagerreasons=0 --exteagerrecalc=0 --factor=0 --fastelim=0 --inprobing=0 --inprocessing=0 --lucky=0 --minimize=0 --otfs=0 --phase=0 --preprocesslight=0 --probe=0 --recomputetier=0 --reluctant=0 --restart=0 --score=0 --stabilize=0 --subsume=0 --sweep=0 --ternary=0 --transred=0 --vivify=0 --walk=0 --warmup=0  input7318.cnf
+Host: cna0118
+3.0.0

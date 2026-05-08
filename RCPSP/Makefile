@@ -3,7 +3,8 @@ CC     = g++
 MPICC  = mpic++
 
 # Flags
-CFLAGS_DEBUG   = -Wall -g
+#CFLAGS_DEBUG   = -Wall -g
+CFLAGS_DEBUG   = -Wall -g -fsanitize=address -fno-omit-frame-pointer
 CFLAGS_RELEASE = -Wall -O3
 CFLAGS_MPI     = -Wall -O3 -DMPI_ATIVO
 

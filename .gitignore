@@ -1,0 +1,14 @@
+bin/
+Teste/bin/
+
+Resultados/*
+!Resultados/.gitkeep
+
+Teste/Resultados/*
+!Teste/Resultados/.gitkeep
+Teste/errorReduce/*
+
+RCPSP/RCPSP/*
+RCPSP/Resultados/*
+!RCPSP/Resultados/.gitkeep
+

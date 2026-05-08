@@ -4,23 +4,25 @@
 #include <random>
 #include <iterator>
 
+TVector<TVector<TSubNets>> CRCPSP::subNets;
+
 enum EParametrosRCPSP {
-	RCPSP_METODO = PARAMETROS_CADICAL,
-	RCPSP_MAXVARS,
-	RCPSP_MAXCLAUSES,
-	RCPSP_UB_LB, // upper and lower bounds to use in conversion (LST/CPM or best of 13 PRs and LBs)
-	RCPSP_HORIZON, // time horizon to use in conversion to add to current LB 
+	RES_METHOD = PARAMETROS_CADICAL,
+	MAX_VARS,
+	MAX_CLAUSES,
+	HORIZON, // time horizon to use in conversion to add to current LB 
+	BASE_LB,
+	LB_MODE,
+	BASE_PR,
+	PR_MODE,
+	HEADS_TAILS, // mode to calculate heads and tails
+	IND_MODE,
+	LOAD_FORMAT, // rcp or any sub-RCPSP problem implemented
+	SUB_INST_ID, // instance ID in case a file have more than one instance
+	CLEAN_RES,
+	RES_WASTE, // mode to optimize resources, adding resource wasted to activities
 };
 
-TVector<TAtivity> CRCPSP::act = {}; // activities (including dummy start and end)
-TVector<int> CRCPSP::capacity = {}; // resource capacities
-TVector<TBits> CRCPSP::predBits; // bitset of predecessors (direct and indirect)
-double CRCPSP::indCNC, CRCPSP::indOS, CRCPSP::indSP,
-CRCPSP::indAD, CRCPSP::indLA, CRCPSP::indI5, CRCPSP::indTF;
-bool CRCPSP::mophologicOK = false;
-int CRCPSP::bestUB = 0, CRCPSP::bestLB = 0; // best upper and lower bounds, to use in conversion
-TVector<int> CRCPSP::es, CRCPSP::ls; // time windows of SAT conversion
-int CRCPSP::calls; // number of calls to SAT solver
 
 void CRCPSP::ResetParametros()
 {
@@ -33,7 +35,7 @@ void CRCPSP::ResetParametros()
 
 	// adicionar o novo parâmetro para a conversão de N Damas para SAT
 	parametro += {
-		"Resources method", 0, 0, 3, "Converting resources optinos",
+		"RES_METHOD", 0, 0, 3, "Converting resources optinos",
 		{
 			"COV",
 			"MFS",
@@ -43,26 +45,71 @@ void CRCPSP::ResetParametros()
 	};
 
 	parametro += {
-		"MaxVars", 1000000, 1000, 1000000000,
-			"Limite máximo de variáveis permitidas na conversão para CNF"
+		"MAX_VARS", 1000000, 1000, 1000000000,
+			"Limit to maximal number of variables in conversion to CNF"
 	};
 
 	parametro += {
-		"MaxClauses", 10000000, 1000, 2000000000,
-			"Limite máximo de cláusulas permitidas na conversão para CNF"
+		"MAX_CLAUSES", 10000000, 1000, 2000000000,
+			"Limit to maximal number of clauses in conversion to CNF"
 	};
 
 	parametro += {
-		"RCPSP_UB_LB", 1, 0, 1, "upper and lower bounds to use in conversion",
+		"HORIZON", -3, -3, 1000, "Time horizon to use in conversion to add to current LB. If -1 runs LBS, -2 UBS, -3 DBS."
+	};
+
+	parametro += {
+		"BASE_LB", 12, 1, 12, "Base LB: set the initial lower bound to use in conversion",
 		{
-			"LST/CPM",
-			"13 PRs/LBs"
+			"CPM","C","CPC","CS","IP","IT","NP",
+			"PM","PR","CT","TP","ALL"
 		}
 	};
 
+	parametro += { "LB_MODE", 0, 0, 1000, "LB mode. In LBs in Node Packing and Parallel Machine. " };
+
 	parametro += {
-		"RCPSP_HORIZON", -3, -3, 1000, "Time horizon to use in conversion to add to current LB. If -1 runs LBS, -2 UBS, -3 DBS."
+		"BASE_PR", 9, 0, 14, "Base PR - Priority rule: set the initial upper bound to use in conversion",
+		{
+			"ID", "SPT", "LPT","MIS","MTS","LNJ","GRPW",
+			"EST","EFT","LST","LFT","MSLK","GRWC","GCRWC","ALL"
+		}
 	};
+
+	parametro += { "PR_MODE", 0, 0, 1, "PR mode, currently scheduling generation scheme.",
+		{ "SGS", "PGS" } };
+
+	parametro += {
+		"HEADS_TAILS", 2, 0, 2, "Calculate heads and tails",
+		{
+			"cpm", "resource capacity", "base LB"
+		}
+	};
+
+	parametro += { "IND_MODE", 0, 0, 1, "IND mode: 0 - pure topological indicators; 1 - duration topological indicators." };
+
+	parametro += {
+		"LOAD_FORMAT", 0, 0, 1, "File format to load an RCPSP instance, or any sub-RCPSP",
+		{
+			"rcp",
+			"Binpacking"
+		}
+	};
+
+	parametro += { "SUB_INST_ID", 0, 0, 10000, "instance ID in case a file have more than one instance" };
+
+	parametro += { "CLEAN_RES", 0, 0, 2, "Clean resources when loading a new instance" };
+
+	parametro += {
+		"RES_WASTE", 0, 0, 3, "Mode to optimize resources, adding resource wasted to activities",
+		{
+			"No resource waste",
+			"Add resource waste (effort of 10 * pt subsets of compatible activities)",
+			"Add resource waste (effort of 100 * pt subsets of compatible activities)",
+			"Add resource waste (effort of 1000 * pt subsets of compatible activities)",
+		}
+	};
+
 
 	instancia = { "Instance", 1,1,1000000, "Instance loaded in rcp format" };
 
@@ -71,6 +118,8 @@ void CRCPSP::ResetParametros()
 		{ "UB", "best upper bound found", IND_UB },
 		{ "LB", "best lower bound found", IND_LB },
 		{ "CALLS", "number of SAT calls", IND_CALLS },
+		{ "BASE_LB", "Base lower bound - initial LB", IND_BASE_LB },
+		{ "PR", "Priority rule - initial UB", IND_PR },
 		{ "N", "Number of activities" },
 		{ "CNC", "Complexity indicator" },
 		{ "OS", "Order strenght" },
@@ -89,27 +138,10 @@ void CRCPSP::ResetParametros()
 		{ "RU", "Resource usage" },
 		{ "RS", "Resource strength" },
 		{ "RC", "Resource constraintness" },
-		{ "LBcp", "Lower bound critical path" },
-		{ "LBc", "Lower bound resource capacity" },
-		{ "LBcpc", "Lower bound critical path and capacity" },
-		{ "LBcs", "Lower bound critical sequence" },
-		{ "LBip", "Lower bound incompatible pairs" },
-		{ "LBit", "Lower bound incompatible triplets" },
-		{ "LBnp0", "Lower bound node packing mode 0" },
-		{ "LBnp1", "Lower bound node packing mode 1" },
-		{ "LBnp2", "Lower bound node packing mode 2" },
-		{ "LBpm0", "Lower bound parallel machine mode 0" },
-		{ "LBpm1", "Lower bound parallel machine mode 1" },
-		{ "LBpm2", "Lower bound parallel machine mode 2" },
-		{ "LBpm3", "Lower bound parallel machine mode 3" },
-		{ "LBpr", "Lower bound reduction precedences" },
-		{ "LBct", "Lower bound reduction core times" },
-		{ "LBtp", "Lower bound reduction time period" },
-		{ "LBall", "Number of activities" },
 
 	};
 
-	indAtivo += { IND_UB, IND_LB, IND_CALLS };
+	indAtivo += { IND_UB, IND_LB, IND_CALLS, IND_BASE_LB, IND_PR };
 
 	// para poder correr em MPI e gerar a mesma instância com diferentes parâmetros
 	// é preciso que o prefixo da instância seja único
@@ -120,92 +152,451 @@ void CRCPSP::ResetParametros()
 
 // load instance from file, and initialize variables
 void CRCPSP::Inicializar(void) {
-	int id = 0;
 	CCaDiCaL::Inicializar();
 
 	// clean datastructure
 	act = {};
 	capacity = {};
-	predBits = {};
 	mophologicOK = false;
 	bestLB = bestUB = 0;
-	es = ls = {};
 	calls = 0;
+	insertedPred = {};
 
-	// load and convert to ints
-	TVector<int> nums;
-	for (auto& line : TString().printf("%s%d.rcp", *ficheiroInstancia, instancia.valor).readLines())
-		for (auto& num : line.tok())
-			nums += atoi(num);
+	switch (Parametro(LOAD_FORMAT)) {
+	case 0: // rcp
+		LoadRCPSP(TString().printf("%s%d.rcp", *ficheiroInstancia, instancia.valor).readLines());
+		break;
+	case 1: // Binpacking
+		LoadBinpacking(
+			TString().printf("%s%d.txt", *ficheiroInstancia, instancia.valor).readLines(),
+			Parametro(SUB_INST_ID));
+		break;
+	}
 
-	// process numnbers:
-	// N, R, <capacity> (all resources), <pt res1 res2 ... #sucs suc1 suc2 ...>  (for all activities)
-	if (nums.Count() >= 2) {
-		act.Count(nums[id++]); // N
-		capacity.Count(nums[id++]); // R
-	}
-	// load capacity
-	if (nums.Count() >= id + R()) {
-		for (int i = 0; i < R(); i++)
-			capacity[i] = nums[id++];
-	}
-	// reset of precedence relations
-	for (auto& activity : act) {
-		activity.pred.Count(0);
-		activity.predBits.Count((N(true) - 63) / 64).Reset(0);
-	}
-	// load activities
-	for (int i = 0; i < N(true) && id < nums.Count(); i++) {
-		act[i].pt = nums[id++]; // processing time
-		act[i].res.Count(R()); // resource usage
-		for (int j = 0; j < act[i].res.Count() && id < nums.Count(); j++)
-			act[i].res[j] = nums[id++]; // resource usage
-		int numSucs = nums[id++]; // number of successors
-		for (int s = 0; s < numSucs && id < nums.Count(); s++) {
-			act[i].suc += nums[id] - 1; // successors (0-indexed)
-			act[nums[id] - 1].pred += i; // predecessors (0-indexed)
-			act[nums[id] - 1].predBits.SetBit(i, true); // bitset of predecessors for quick checking
-			id++;
+	ResetSubNets();
+	InitialSetup();
+}
+
+void CRCPSP::LoadBinpacking(TVector<TString> lines, int instanceID) {
+	int i = 0, itens; //, bks;
+	int instances = atoi(lines[i++]);
+	TVector<int> data;
+
+	printf("\nload binpack"); fflush(stdout);
+	{
+		TString name = lines[i++]; // identifyer
+		data = {};
+		for (auto& token : lines[i++].tok()) // capacity, number of itens, bks
+			data += atoi(token);
+		(capacity = {}) += data[0]; // first is capacity of the single resource
+		itens = data[1];
+		act.Count(itens + 2);
+		//bks = data[2];
+		act[0].id = 0;
+		act[0].pt = 0;
+		act[0].res.Count(1);
+		act[0].res.Reset(0);
+		for (int j = 0; j < itens; j++) {
+			act[0].suc += (j + 1);
+			act[j + 1].id = j + 1;
+			act[j + 1].pt = 1; // processing time
+			act[j + 1].res.Count(1); // resource usage
+			act[j + 1].res[0] = atoi(lines[i++]);
+			act[j + 1].pred += 0;
+			act[j + 1].suc += (itens + 1);
+			act[itens + 1].pred += (j + 1);
 		}
+		act[itens + 1].id = itens + 1;
+		act[itens + 1].pt = 0;
+		act[itens + 1].res.Count(1);
+		act[itens + 1].res.Reset(0);
 	}
-
-	// update predBits (direct and indirect)
-	predBits.Count(N(true)).Reset(0);
-	for (int i = 0; i < N(true); i++) {
-		predBits[i] = act[i].predBits;
-		for (auto& pred : act[i].pred)
-			predBits[i] |= predBits[pred];
-	}
-
-	// carregar valores sem debug
-	ENivelDebug backupDebug = (ENivelDebug)Parametro(NIVEL_DEBUG);
-	Parametro(NIVEL_DEBUG) = NADA;
-	if (Parametro(RCPSP_UB_LB) == 0) {
-		bestLB = LBCPM(); // CPM
-		PriorityRule(9); // LST
-	}
-	else { // use all LBs and PRs, and take the best of them
-		bestLB = LBAll();
-		BestPR();
-	}
-	bestUB = st.Last();
-	Parametro(NIVEL_DEBUG) = backupDebug;
+	printf("\nfinish load binpack"); fflush(stdout);
 }
 
 
+void CRCPSP::LoadRCPSP(TVector<TString> lines) {
+	TVector<int> nums;
+	for (auto& line : lines)
+		for (auto& num : line.tok())
+			nums += atoi(num);
+	nums.Invert(); // invert to extract from the top
+	TVector<int>::erro = 0; // if file ends, the rest of the data is set to 0
+
+	// process numnbers:
+	// N, R, <capacity> (all resources), <pt res1 res2 ... #sucs suc1 suc2 ...>  (for all activities)
+	act.Count(nums.Pop()); // N
+	capacity.Count(nums.Pop()); // R
+
+	// load capacity
+	for (auto& available : capacity)
+		available = nums.Pop();
+	// reset of precedence relations
+	for (auto& activity : act) {
+		activity.pred = {};
+		activity.suc = {};
+	}
+	// load activities
+	int i = 0;
+	for (auto& activity : act) {
+		activity.id = i++; // original activity id
+		activity.pt = nums.Pop(); // processing time
+		activity.res.Count(R()); // resource usage
+		for (auto& res : activity.res)
+			res = nums.Pop(); // resource usage
+		int numSucs = nums.Pop(); // number of successors
+		for (int s = 0; s < numSucs; s++)
+			activity.suc += nums.Pop() - 1; // successors (0-indexed)
+	}
+	// setup pred based on suc
+	for (auto& activity : act)
+		for (auto& suc : activity.suc)
+			act[act[suc].id].pred += activity.id;
+}
+
+
+// clone the project with just the selected activties
+CRCPSP* CRCPSP::Clone(TBits activities) {
+	CRCPSP* p = new CRCPSP();
+
+	activities.SetBit(0, true).SetBit(N(true) - 1, true);
+
+	// clean datastructure
+	p->act = {};
+	p->capacity = capacity;
+	p->mophologicOK = false;
+	p->bestLB = p->bestUB = 0;
+	p->calls = 0;
+	p->insertedPred = {};
+	p->parametro = parametro;
+
+	// copy only activities set to true
+	//printf("%s", *activities.String(2));
+	p->act += act.First();
+	for (int i = 1; i <= N(); i++)
+		if (activities.GetBit(i))
+			p->act += act[i];
+	p->act += act.Last();
+	// set sucessors/predecessors as indirect that are selected
+	for (int i = 0; i < p->N(true); i++) {
+		TBits sucs = p->act[i].sucBits & activities;
+		TBits preds = p->act[i].predBits & activities;
+		p->act[i].suc = {};
+		p->act[i].pred = {};
+		for (int j = 0; j < N(true); j++) {
+			if (sucs.GetBit(j))
+				// add sucessor
+				p->act[i].suc += act[j].id;
+			if (preds.GetBit(j))
+				// add predecessor
+				p->act[i].pred += act[j].id;
+		}
+	}
+	p->InitialSetup();
+
+	// make an hashtable on unique, saving bestLB and bestUB, 
+	// to guaranty one calculation for each network
+
+	// only 2N networks are needed, calculate them by order of size, and reuse heads/tails inside each subnetwork
+
+	/*
+	printf("\nSubset {");
+	for(auto item : unique)
+		printf("%d ", item);
+	printf("} LB%d UB%d",p->bestLB,p->bestUB);
+	p->Debug(true);*/
+	return p;
+}
+
+void CRCPSP::UpdateIndex() {
+	// check first if all ID are from 0 to N(true)-1
+	index.Count(act.Last().id + 1).Reset(-1);
+	for (int i = 0; i < N(true); i++)
+		index[act[i].id] = i;
+
+	if (index.Count() == act.Count()) { // no need an extra index
+		for (int i = 0; i < N(true); i++)
+			act[i].index = index[i];
+		index = {};
+	}
+}
+
+// change the order of activities to PL and by ID, to get all predecessors index before sucessor index
+void CRCPSP::ActivityOrder() {
+	TVector<int> weight, id;
+	TVector<TActivity> newOrder;
+	int j = 0;
+	if (act.Count() < 2)
+		return;
+	UpdateIndex();
+	//  initiate pLevel
+	for (auto& activity : act)
+		activity.pLevel = -1;
+	id += 0;
+	// calculate pLevel
+	while (j < id.Count()) {
+		int i = id[j++];
+		act[i].pLevel = 0;
+		for (auto& pred : act[i].pred)
+			if (act[i].pLevel <= act[Index(pred)].pLevel)
+				act[i].pLevel = act[Index(pred)].pLevel + 1;
+		// add sucessors that have all predecessors calculated
+		for (auto& suc : act[i].suc) {
+			bool allDone = true;
+			for (auto& pred : act[Index(suc, N(true) - 1)].pred)
+				if (act[Index(pred)].pLevel < 0) {
+					allDone = false;
+					break;
+				}
+			if (allDone)
+				id += Index(suc, N(true) - 1);
+		}
+	}
+	for (auto& activity : act) {
+		if (activity.pLevel < 0) {
+			// big error, report always
+			printf("\nError: Cycle detected in activity %d!", activity.id);
+			for (auto& activity : act) {
+				printf("\nid %d pLevel %d sucs: ",
+					activity.id, activity.pLevel);
+				for (auto suc : activity.suc)
+					printf("%d ", suc);
+			}
+
+
+			// setup parallel network
+			for (int i = 0; i < N(true); i++) {
+				act[Index(i, 0)].pred = act[Index(i)].suc = {};
+				if (i < N(true) - 1)
+					act[Index(i)].suc += i + 1;
+				if (i > 0)
+					act[Index(i)].pred += i - 1;
+			}
+			exit(1);
+			ActivityOrder();
+			return;
+		}
+		weight += activity.pLevel * N(true) + activity.id;
+	}
+	// sort index
+	weight.Sort(&id);
+	// set activities in the correct order
+	for (auto& i : id)
+		newOrder += act[i];
+	act = newOrder;
+	UpdateIndex();
+}
+
+void CRCPSP::CleanResources() {
+	if (Parametro(CLEAN_RES) == 0)
+		return;
+	// delete resources with sumRU <= capacity
+	for (int k = 0; k < R(); k++) {
+		int sumRU = 0;
+		for (auto& activity : act)
+			if ((sumRU += activity.res[k]) > capacity[k])
+				break;
+		if (sumRU <= capacity[k]) {
+			// remove resource k
+			capacity.Delete(k);
+			for (auto& activity : act)
+				activity.res.Delete(k);
+			k--;
+		}
+	}
+	if (Parametro(CLEAN_RES) == 1)
+		return;
+	// delete the resource if for any activity i, the sumRU of all compatible activities plus RU(i) <= capacity
+	for (int k = 0; k < R(); k++) {
+		bool noRestriction = true;
+		for (auto& activity : act) {
+			int sumRU = 0;
+			TBits compatible = ~(activity.predBits | activity.sucBits);
+			for (int j = 0; j < N(true) && noRestriction; j++)
+				if (compatible.GetBit(j))
+					noRestriction = ((sumRU += act[j].res[k]) <= capacity[k]);
+			if (!noRestriction)
+				break;
+		}
+		if (noRestriction) {
+			// remove resource k
+			capacity.Delete(k);
+			for (auto& activity : act)
+				activity.res.Delete(k);
+			k--;
+		}
+	}
+}
+
+
+// update auxiliar datastructure
+void CRCPSP::InitialSetup() {
+	int max;
+	ActivityOrder();
+
+	// setup the binary precedence relations
+	for (auto& activity : act) {
+		activity.predBits.Count((N(true) - 63) / 64).Reset(0);
+		activity.sucBits.Count((N(true) - 63) / 64).Reset(0);
+		// setup direct precedence relations, and progressive level
+		for (auto& pred : activity.pred)
+			activity.predBits.SetBit(Index(pred), true);
+		for (auto& suc : activity.suc)
+			activity.sucBits.SetBit(Index(suc, N(true) - 1), true);
+	}
+
+	// use bits direct/indirect 
+	for (int i = 0; i < N(true); i++)
+		for (auto& pred : act[i].pred)
+			act[i].predBits |= act[Index(pred)].predBits;
+	for (int i = N(true) - 1; i >= 0; i--)
+		for (auto& suc : act[i].suc)
+			act[i].sucBits |= act[Index(suc)].sucBits;
+
+	CleanResources();
+	// resource waste procedure
+	FeasibleSets(3, max);
+
+	// initial calculations
+	ENivelDebug backupDebug = (ENivelDebug)Parametro(NIVEL_DEBUG);
+	Parametro(NIVEL_DEBUG) = NADA;
+	// calculate cpm heads/tails 
+	TVector<int> es, ls;
+	CPM(es, &ls);
+	cpm = bestLB = es.Last();
+	for (int i = 0; i < N(true); i++) {
+		act[i].head = es[i];
+		act[i].tail = bestLB - ls[i] - act[i].pt;
+	}
+	bestLB = es.Last(); // 1:CPM
+	PriorityRule(9); // 9:LST
+	bestUB = st.Last();
+	if (bestLB < bestUB) {
+		Parametro(NIVEL_DEBUG) = backupDebug;
+		// improve heads/tails
+		if (Parametro(HEADS_TAILS) >= 1) { // calculate LBc from all predecessors
+			for (int i = 0; i < N(true); i++) {
+				int bound;
+				Parametro(NIVEL_DEBUG) = NADA;
+				if (act[i].head < (bound = LBC(&(act[i].predBits)))) {
+					act[i].head = bound;
+					Parametro(NIVEL_DEBUG) = backupDebug;
+					TProcura::Debug(COMPLETO, false, "\n%s h%d=%d %s%d", *Act2Str(act[i].id), i, bound,
+						Icon(EIcon::LB), act[i].head + act[i].pt + act[i].tail);
+				}
+				Parametro(NIVEL_DEBUG) = NADA;
+				if (act[i].tail < (bound = LBC(&(act[i].sucBits)))) {
+					act[i].tail = bound;
+					Parametro(NIVEL_DEBUG) = backupDebug;
+					TProcura::Debug(COMPLETO, false, "\n%s t%d=%d %s%d", *Act2Str(act[i].id), i, bound,
+						Icon(EIcon::LB), act[i].head + act[i].pt + act[i].tail);
+				}
+				Parametro(NIVEL_DEBUG) = backupDebug;
+			}
+		}
+		if (Parametro(HEADS_TAILS) == 2) { // use baseLB for all heads/tails
+			for (int i = 1; i <= N(); i++) {
+				if (LBHead(act[i].predBits)) {
+					TBits originalPredBits = OriginalBits(act[i].predBits);
+					TSubNets& headNet = GetSubNet(originalPredBits);
+					if (headNet.bestLB == -1) { // not calculated yet
+						CRCPSP* head = Clone(act[i].predBits);
+						// headNet pode ter movido de local na hashtable
+						TSubNets& headNet = GetSubNet(originalPredBits);
+						if (head->bestLB > act[i].head) {
+							headNet.bestLB = head->bestLB;
+							Debug(headNet, act[i].id, act[i].head);
+							act[i].head = head->bestLB;
+						}
+						delete head;
+						headNet.bestLB = act[i].head;
+					}
+					else {
+						if (act[i].head < headNet.bestLB) {
+							Debug(headNet, act[i].id, act[i].head, true);
+							act[i].head = headNet.bestLB;
+						}
+					}
+				}
+				if (LBTail(act[i].sucBits)) {
+					TBits originalSucBits = OriginalBits(act[i].sucBits);
+					TSubNets& tailNet = GetSubNet(originalSucBits);
+					if (tailNet.bestLB == -1) { // not calculated yet
+						CRCPSP* tail = Clone(act[i].sucBits);
+						// tailNet pode ter movido de local na hashtable
+						TSubNets& tailNet = GetSubNet(originalSucBits);
+						if (tail->bestLB > act[i].tail) {
+							tailNet.bestLB = tail->bestLB;
+							Debug(tailNet, act[i].id, act[i].tail);
+							act[i].tail = tail->bestLB;
+						}
+						delete tail;
+						tailNet.bestLB = act[i].tail;
+					}
+					else {
+						if (act[i].tail < tailNet.bestLB) {
+							Debug(tailNet, act[i].id, act[i].tail, true);
+							act[i].tail = tailNet.bestLB;
+						}
+					}
+				}
+			}
+		}
+		// update bestLB and heads/tails of dummy activities
+		for (auto& activity : act)
+			if (bestLB < activity.head + activity.pt + activity.tail)
+				bestLB = activity.head + activity.pt + activity.tail;
+		if (cpm < bestLB)
+			TProcura::Debug(COMPLETO, false, "\nCPM bound %d, after heads/tails %d", cpm, bestLB);
+		if (Parametro(BASE_LB) != 1) { // not the CPM
+			int baseLB = BaseLB(Parametro(BASE_LB), Parametro(LB_MODE));
+			if (bestLB < baseLB)
+				bestLB = baseLB;
+		}
+		if (bestLB < bestUB && (Parametro(BASE_PR) != 9 || Parametro(PR_MODE) != 0)) // not the LST
+			bestUB = BaseUB(Parametro(BASE_PR), Parametro(PR_MODE));
+		// tail/head of dummy start and end activities are the bestLB
+		act.First().tail = bestLB;
+		act.Last().head = bestLB;
+	}
+	Parametro(NIVEL_DEBUG) = backupDebug;
+}
+
+void CRCPSP::Debug(TSubNets& subNet, int id, int prevBound, bool reused) {
+	TProcura::Debug(DETALHE, false, "\nSubset {", subNet.activities.Data());
+	for (auto& activity : act)
+		if (subNet.activities.GetBit(activity.id))
+			TProcura::Debug(DETALHE, false, "%s ", *Act2Str(activity.id));
+	TProcura::Debug(DETALHE, false, "} LB%d - %s (prev %d)%s",
+		subNet.bestLB, *Act2Str(id), prevBound, reused ? " reused" : "");
+}
+
+
+// convert bits in orignal ID bits
+TBits CRCPSP::OriginalBits(TBits& bits) {
+	TBits original;
+	for (int i = 1; i <= N(); i++)
+		if (bits.GetBit(i))
+			original.SetBit(act[i].id, true);
+	return original;
+}
 
 int CRCPSP::ExecutaAlgoritmo()
 {
 	calls = 0;
+	// check if there is no procedure
+	if (Parametro(ALGORITMO) == 0)
+		return 1;
+
 	// search strategy
-	if (Parametro(RCPSP_HORIZON) < 0) {
+	if (Parametro(HORIZON) < 0) {
 		int totalTime = 0; // sum the time from all runs
-		int backup = Parametro(RCPSP_HORIZON);
+		int backup = Parametro(HORIZON);
 		TVector<int> bestSolution;
 		bestSolution = st;
 
 		if (backup == -1) { // LBS 
-			Parametro(RCPSP_HORIZON) = 0;
+			Parametro(HORIZON) = 0;
 			while (bestLB < bestUB) {
 				ExecutaAlgoritmo();
 				calls++;
@@ -216,21 +607,21 @@ int CRCPSP::ExecutaAlgoritmo()
 				}
 				else if (indicators[IND_RESULTADO] == 2) { // impossível
 					bestLB++;
-					Parametro(RCPSP_HORIZON)++;
+					Parametro(HORIZON)++;
 				}
 				else
 					break; // not solved, stop
 			}
 		}
-		else if (Parametro(RCPSP_HORIZON) == -2) { // UBS
-			Parametro(RCPSP_HORIZON) = bestUB - bestLB - 1;
+		else if (Parametro(HORIZON) == -2) { // UBS
+			Parametro(HORIZON) = bestUB - bestLB - 1;
 			while (bestLB < bestUB) {
 				ExecutaAlgoritmo();
 				calls++;
 				totalTime += indicators[IND_TEMPO];
 				if (indicators[IND_RESULTADO] == 1) { // resolvido, solução
-					bestUB = bestLB + Parametro(RCPSP_HORIZON);
-					Parametro(RCPSP_HORIZON)--;
+					bestUB = bestLB + Parametro(HORIZON);
+					Parametro(HORIZON)--;
 					bestSolution = st; // save best solution found
 				}
 				else if (indicators[IND_RESULTADO] == 2) // impossible
@@ -239,20 +630,20 @@ int CRCPSP::ExecutaAlgoritmo()
 					break; // not solved, stop
 			}
 		}
-		else if (Parametro(RCPSP_HORIZON) == -3) { // DBS
-			Parametro(RCPSP_HORIZON) = (bestUB - bestLB) / 2;
+		else if (Parametro(HORIZON) == -3) { // DBS
+			Parametro(HORIZON) = (bestUB - bestLB) / 2;
 			while (bestLB < bestUB) {
 				ExecutaAlgoritmo();
 				calls++;
 				totalTime += indicators[IND_TEMPO];
 				if (indicators[IND_RESULTADO] == 1) { // resolvido, solução
-					bestUB = bestLB + Parametro(RCPSP_HORIZON);
-					Parametro(RCPSP_HORIZON) = (bestUB - bestLB) / 2;
+					bestUB = bestLB + Parametro(HORIZON);
+					Parametro(HORIZON) = (bestUB - bestLB) / 2;
 					bestSolution = st; // save best solution found
 				}
 				else if (indicators[IND_RESULTADO] == 2) { // impossível
-					bestLB = bestLB + Parametro(RCPSP_HORIZON) + 1;
-					Parametro(RCPSP_HORIZON) = (bestUB - bestLB) / 2;
+					bestLB = bestLB + Parametro(HORIZON) + 1;
+					Parametro(HORIZON) = (bestUB - bestLB) / 2;
 				}
 				else
 					break; // not solved, stop
@@ -263,14 +654,14 @@ int CRCPSP::ExecutaAlgoritmo()
 		st = bestSolution; // restore best solution found
 		if (bestLB == bestUB)
 			indicators[IND_RESULTADO] = 1; // mark as solved, since we know the optimal makespan
-		Parametro(RCPSP_HORIZON) = backup;
+		Parametro(HORIZON) = backup;
 	}
 	else {
 		// single run with given horizon
 		// converter para SAT
 		TString ficheiro;
 		ficheiro.printf("%s%d.cnf", *ficheiroInstancia, instancia.valor)
-			.writeLines(SATConverter(Parametro(RCPSP_METODO)));
+			.writeLines(SATConverter(Parametro(RES_METHOD)));
 
 		if (conversaoOK) {
 			// executar cadical
@@ -278,8 +669,9 @@ int CRCPSP::ExecutaAlgoritmo()
 			calls = 1;
 
 			if (indicators[IND_RESULTADO] == 1) {
+				ExtrairSolucao(satSol, Parametro(RES_METHOD));
 				// verificar solução
-				if (VerificarSolucao(satSol, Parametro(RCPSP_METODO))) {
+				if (VerificarSolucao()) {
 					if (Parametro(NIVEL_DEBUG) > ATIVIDADE) {
 						printf("\nSolução válida!");
 						MostrarSolucao();
@@ -306,77 +698,88 @@ int CRCPSP::ExecutaAlgoritmo()
 }
 
 bool CRCPSP::TamanhoOK(TVector<TString>& cnf) {
-	return variaveis.Count() - 1 <= Parametro(RCPSP_MAXVARS) &&
-		cnf.Count() - 2 <= Parametro(RCPSP_MAXCLAUSES);
+	return variaveis.Count() - 1 <= Parametro(MAX_VARS) &&
+		cnf.Count() - 2 <= Parametro(MAX_CLAUSES);
 }
-
 
 TVector<TString> CRCPSP::SATConverter(int metodo) {
 	TVector<TString> cnf;
+	int horizon = bestLB + Parametro(HORIZON);
 	conversaoOK = false;
 	LimparEstatisticas();
 	ResetHashtable();
-	CPM(es, &ls, bestLB + Parametro(RCPSP_HORIZON)); // calculate es and ls for the given makespan (bestLB + horizon)
 	// starting comment
 	cnf += TString().printf("c (%s%d) RCPSP to CNF, method %d.", *ficheiroInstancia, instancia.valor, metodo);
 	cnf += TString(); // fill in the end, after processing all data
 
 	// access to variables to create IDs
 	// add l(j,t) variables for each activity j and time t, indicating if activity j starts at or less instant t
-	for (int i = 0; i < N(true); i++)
-		for (int t = es[i]; t <= ls[i]; t++)
-			VarL(i, t);
+	for (auto& activity : act)
+		for (int t = ES(activity); t <= LS(activity, horizon); t++)
+			VarL(activity.id, t);
 	// add u(j,t), in the time window - activity j running at instant t
-	for (int i = 0; i < N(true); i++)
-		for (int t = es[i]; t < ls[i] + act[i].pt; t++)
-			VarU(i, t);
+	for (auto& activity : act)
+		for (int t = ES(activity); t < LF(activity, horizon); t++)
+			VarU(activity.id, t);
 
 	// add clauses for CPM constraints
-	for (int i = 0; i < N(true) && TamanhoOK(cnf) && !TempoExcedido(); i++) // Range limits
-		cnf += TString().printf("%d 0", VarL(i, ls[i])); // l(j,ls[j]) = 1
+	for (auto& activity : act)
+		cnf += TString().printf("%d 0", VarL(activity.id, LS(activity, horizon))); // l(j,ls[j]) = 1
 
 	// Consistency: l(i,t) => l(i,t+1)   -l(j,t) + l(j,t+1)
-	for (int i = 0; i < N(true) && TamanhoOK(cnf) && !TempoExcedido(); i++)
-		for (int t = es[i]; t < ls[i]; t++)
-			cnf += TString().printf("-%d %d 0", VarL(i, t), VarL(i, t + 1));
+	if (TamanhoOK(cnf) && !TempoExcedido())
+		for (auto& activity : act)
+			for (int t = ES(activity); t < LS(activity, horizon); t++)
+				cnf += TString().printf("%d %d 0", -VarL(activity.id, t), VarL(activity.id, t + 1));
 
 	// Link: u(i,t) <=> (l(i,t) & ~l(i,t-di))
 	// -u(j,t) + l(j,t)  | -u(j,t) + -l(j,t-dj) | -l(j,t) + l(j,t-dj) + u(j,t)
-	for (int i = 0; i < N(true) && TamanhoOK(cnf) && !TempoExcedido(); i++)
-		for (int t = es[i]; t < ls[i] + act[i].pt; t++) {
-			if (t <= ls[i])
-				cnf += TString().printf("-%d %d 0", VarU(i, t), VarL(i, t)); // -u(j,t) + l(j,t)
-			if (t - act[i].pt >= es[i])
-				cnf += TString().printf("-%d -%d 0", VarU(i, t), VarL(i, t - act[i].pt)); // -u(j,t) + -l(j,t-dj)
-			cnf += TString().printf("%d ", VarU(i, t)); // u(j,t)
-			if (t < ls[i])
-				cnf.Last().printf("-%d ", VarL(i, t)); // -l(j,t)
-			if (t - act[i].pt >= es[i])
-				cnf.Last().printf("%d ", VarL(i, t - act[i].pt)); // l(j,t-dj) 
-			cnf.Last().printf("0");
-		}
+	if (TamanhoOK(cnf) && !TempoExcedido())
+		for (auto& activity : act)
+			for (int t = ES(activity); t < LF(activity, horizon); t++) {
+				if (t <= LS(activity, horizon))
+					cnf += TString().printf("%d %d 0",
+						-VarU(activity.id, t),
+						VarL(activity.id, t)); // -u(j,t) + l(j,t)
+				if (t - activity.pt >= ES(activity))
+					cnf += TString().printf("%d %d 0",
+						-VarU(activity.id, t),
+						-VarL(activity.id, t - activity.pt)); // -u(j,t) + -l(j,t-dj)
+				cnf += TString().printf("%d ", VarU(activity.id, t)); // u(j,t)
+				if (t < LS(activity, horizon))
+					cnf.Last().printf("%d ", -VarL(activity.id, t)); // -l(j,t)
+				if (t - activity.pt >= ES(activity))
+					cnf.Last().printf("%d ", VarL(activity.id, t - activity.pt)); // l(j,t-dj) 
+				cnf.Last().printf("0");
+			}
+
 
 	// Precedence(i, i'): l(i', t) => l(i, t - di)
 	// -l(i,t) + l(j,t-dj)
-	for (int i = 0; i < N(true) && TamanhoOK(cnf) && !TempoExcedido(); i++)
-		for (auto& suc : act[i].suc)
-			for (int t = es[suc]; t <= ls[suc]; t++)
-				if (es[i] <= t - act[i].pt && t - act[i].pt <= ls[i]) // only add clause if t-di is in the time window of i
-					cnf += TString().printf("-%d %d 0", VarL(suc, t), VarL(i, t - act[i].pt));
-
+	if (TamanhoOK(cnf) && !TempoExcedido())
+		for (auto& activity : act)
+			for (auto& suc : activity.suc) {
+				TActivity& sucessor = act[Index(suc, N(true) - 1)];
+				for (int t = ES(sucessor); t <= LS(sucessor, horizon); t++)
+					if (ES(activity) <= t - activity.pt &&
+						t - activity.pt <= LS(activity, horizon)) // only add clause if t-di is in the time window of i
+						cnf += TString().printf("%d %d 0", -VarL(sucessor.id, t), VarL(activity.id, t - activity.pt));
+			}
 
 	// add resource restrictions for all time instants
-	for (int t = 0; t <= bestLB + Parametro(RCPSP_HORIZON) && TamanhoOK(cnf) && !TempoExcedido(); t++) {
+	for (int t = 0; t <= bestLB + Parametro(HORIZON) && TamanhoOK(cnf) && !TempoExcedido(); t++) {
 		TVector<int> inTW, inFS; // activities in time window (can be running at time t)
-		for (int i = 1; i <= N(); i++)
-			if (es[i] <= t && t < ls[i] + act[i].pt) // if activity i can be running at time t
-				inTW += i;
+		TBits inFSb;
+		for (auto& activity : act) // add activitis that can be running at time t
+			if (activity.pt > 0 && ES(activity) <= t && t < LF(activity, horizon))
+				inTW += activity.id;
 		if (metodo == 0) // COV - covers
 			cnf += AddCOV(inTW, inFS, t);
 		else if (metodo == 1) // MFS - Minimal Forbiddent Sets
-			cnf += AddMFS(inTW, t);
+			cnf += AddMFS(inTW, inFS, inFSb, t);
 		else if (metodo == 2) // BDD - Binary Decision Diagrams
-			cnf += AddBDD(inTW, t);
+			for (int k = 0; k < R(); k++)
+				cnf += AddBDD(inTW, inFS, t, k);
 		else if (metodo == 3) // ADD - Adders
 			cnf += AddADD(inTW, t);
 	}
@@ -406,7 +809,7 @@ TVector<TString> CRCPSP::AddCOV(TVector<int>& inTW, TVector<int>& inFS, int t) {
 	// try with top activity
 	inFS.Push(j = inTW.Pop());
 	for (int k = 0; k < R(); k++)
-		resUsage[k] += act[j].res[k];
+		resUsage[k] += act[Index(j)].res[k];
 
 	// check if resources are violated
 	if (ResourcesViolated(resUsage)) {
@@ -416,14 +819,14 @@ TVector<TString> CRCPSP::AddCOV(TVector<int>& inTW, TVector<int>& inFS, int t) {
 			TVector<int> resTest;
 			resTest = resUsage;
 			for (int k = 0; k < R(); k++)
-				resTest[k] -= act[inFS[i]].res[k];
+				resTest[k] -= act[Index(inFS[i])].res[k];
 			minimal = !ResourcesViolated(resTest);
 		}
 		if (minimal) {
 			// add clause to forbid this combination of activities in time t
 			cnf += TString();
 			for (auto& activity : inFS)
-				cnf.Last().printf("-%d ", VarU(activity, t));
+				cnf.Last().printf("%d ", -VarU(activity, t));
 			cnf.Last().printf("0");
 		}
 	}
@@ -433,7 +836,7 @@ TVector<TString> CRCPSP::AddCOV(TVector<int>& inTW, TVector<int>& inFS, int t) {
 
 	inFS.Pop();
 	for (int k = 0; k < R(); k++)
-		resUsage[k] -= act[j].res[k];
+		resUsage[k] -= act[Index(j)].res[k];
 
 	// try without top activity
 	cnf += AddCOV(inTW, inFS, t);
@@ -452,13 +855,125 @@ bool CRCPSP::ResourcesViolated(TVector<int>& resUsage) {
 }
 
 
-TVector<TString> CRCPSP::AddMFS(TVector<int> activities, int t) {
+TVector<TString> CRCPSP::AddMFS(TVector<int>& inTW, TVector<int>& inFS, TBits& inFSb, int t) {
+	static TVector<int> resUsage;
 	TVector<TString> cnf;
+	int j;
+
+	if (inTW.Empty())
+		return cnf;
+
+	if (inFS.Empty())
+		resUsage.Count(R()).Reset(0);
+
+	// try with top activity
+	j = inTW.Pop();
+
+	// check if a current activity is predecessor of j or successor
+	if (!(inFSb & act[Index(j)].predBits || inFSb & act[Index(j)].sucBits)) {
+		// all compatible in precedence relations
+		inFS.Push(j);
+		inFSb.SetBit(Index(j), true);
+		// check if j is compatible with other activities inFS
+		for (int k = 0; k < R(); k++)
+			resUsage[k] += act[Index(j)].res[k];
+
+		// check if resources are violated
+		if (ResourcesViolated(resUsage)) {
+			bool minimal = true;
+			// check if is minimal cover (test if removing any activity from inFS makes it feasible)
+			for (int i = 0; minimal && i < inFS.Count() - 1; i++) {
+				TVector<int> resTest;
+				resTest = resUsage;
+				for (int k = 0; k < R(); k++)
+					resTest[k] -= act[Index(inFS[i])].res[k];
+				minimal = !ResourcesViolated(resTest);
+			}
+			if (minimal) {
+				// add clause to forbid this combination of activities in time t
+				cnf += TString();
+				for (auto& activity : inFS)
+					cnf.Last().printf("%d ", -VarU(activity, t));
+				cnf.Last().printf("0");
+			}
+		}
+		else
+			cnf += AddMFS(inTW, inFS, inFSb, t);
+
+		inFS.Pop();
+		inFSb.SetBit(j, false);
+		for (int k = 0; k < R(); k++)
+			resUsage[k] -= act[Index(j)].res[k];
+	}
+
+	// try without top activity
+	cnf += AddMFS(inTW, inFS, inFSb, t);
+
+	// left the set identical
+	inTW.Push(j);
+
 	return cnf;
 }
 
-TVector<TString> CRCPSP::AddBDD(TVector<int> activities, int t) {
+// one Binary Decision Diagram for each resource type and time instant t
+// - nodes are ITE gates
+// - top level the gate should be set to 1
+// - each gate have a label "IFE(level,resource,t,available)"
+// - in gate=ITE(decision,true,false)
+//   decision is a fixed variable in each level (inTW)
+//   true is the gate with label "IFE(level+1,resource,t,available-act[j].res[resource])" -- resource is consumed
+//   false is the gate with label "IFE(level+1,resource,t,available)" --- resource is not consumed
+//   if resources are not enouth, true must be set to 0
+//   if resources are more than needed, false must be set to 1
+
+TVector<TString> CRCPSP::AddBDD(TVector<int>& inTW, TVector<int>& inFS, int t, int resource) {
 	TVector<TString> cnf;
+	static int available;
+	static TVector<int> maxRes;
+	int j;
+	int vars, gate, varTrue, varFalse;
+
+	if (inTW.Empty())
+		return cnf;
+
+	if (inFS.Empty()) {
+		available = capacity[resource];
+		maxRes.Count(inTW.Count());
+		for (int i = 0; i < inTW.Count(); i++)
+			maxRes[i] = act[Index(inTW[i])].res[resource] + (i > 0 ? maxRes[i - 1] : 0);
+	}
+
+	// activity j in this level
+	inFS.Push(j = inTW.Pop());
+
+	vars = variaveis.Count();
+	gate = VarITE(inTW.Count(), resource, t, available);
+	// if variable is selected and there is not enouth resources, then link to false
+	if (available < act[Index(j)].res[resource])
+		varTrue = 0;
+	else
+		varTrue = VarITE(inTW.Count() - 1, resource, t, available - act[Index(j)].res[resource]);
+	// if varialbe is not selected and exist resources for the rest of activities, then link to true
+	if (inTW.Count() == 0 || maxRes[inTW.Count() - 1] >= available)
+		varFalse = 0;
+	else
+		varFalse = VarITE(inTW.Count() - 1, resource, t, available);
+
+	cnf += GateITE(gate, VarU(j, t), varTrue, varFalse);
+
+	// variable varTrue created here, generate the gate recursive
+	// if was not created, already existed and created in other node
+	if (varTrue > 0 && varTrue >= vars) {
+		available -= act[j].res[resource];
+		cnf += AddBDD(inTW, inFS, t, resource);
+		available += act[Index(j)].res[resource];
+	}
+
+	if (varFalse > 0 && varFalse >= vars)
+		cnf += AddBDD(inTW, inFS, t, resource);
+
+	inTW.Push(inFS.Pop());
+
 	return cnf;
 }
 
@@ -467,57 +982,62 @@ TVector<TString> CRCPSP::AddADD(TVector<int> activities, int t) {
 	return cnf;
 }
 
-bool CRCPSP::VerificarSolucao(const TVector<int64_t>& satSol, int metodo) {
-	TVector<int> instants, onProgress, resUsed;
-	resUsed.Count(R()).Reset(0);
-
-	if (Parametro(ALGORITMO) == 0)
-		return true;
-
-	// extract the starting times
-	st = es; // initialize with earliest start times, and update with the solution
-	for (int64_t var : satSol) {
-		int i, t;
-		// can exist only variables true, if time windows is null, but in that case will be equal to es
-		if (var < 0) {
-			if (sscanf(Var(-var), "l %d %d", &i, &t) == 2) {
-				// if l(i,t) = 1, st[i] <= t
-				// if l(i,t) = 0, st[i] > t
-				if (st[i] <= t)
-					st[i] = t + 1;
-				//				printf("l(%d,%d) = 0 => st[%d] > %d\n", i, t, i, t);
+void CRCPSP::ExtrairSolucao(const TVector<int64_t>& satSol, int metodo) {
+	if (Parametro(ALGORITMO) > 0) {
+		// extract the starting times
+		// initialize with earliest start times, and update with the solution
+		st.Count(N(true));
+		for (int i = 0; i < N(true); i++)
+			st[i] = ES(act[i]);
+		for (int64_t var : satSol) {
+			int i, t;
+			// can exist only variables true, if time windows is null, but in that case will be equal to es
+			if (var < 0) {
+				if (sscanf(Var(-var), "l %d %d", &i, &t) == 2) {
+					// if l(i,t) = 1, st[i] <= t
+					// if l(i,t) = 0, st[i] > t
+					if (st[Index(i)] <= t)
+						st[Index(i)] = t + 1;
+					//				printf("l(%d,%d) = 0 => st[%d] > %d\n", i, t, i, t);
+				}
 			}
 		}
 	}
+}
 
+bool CRCPSP::VerificarSolucao() {
+	TVector<int> instants, onProgress, resUsed;
+	resUsed.Count(R()).Reset(0);
 	// check precedence constraints
-	for (int i = 1; i <= N(); i++)
+	for (int i = 0; i < N(true); i++)
 		for (auto& suc : act[i].suc)
-			if (st[i] + act[i].pt > st[suc]) {
-				printf("\nPrecedence violation: activity %d finishes at %d, but successor %d starts at %d", i, st[i] + act[i].pt, suc, st[suc]);
+			if (st[i] + act[i].pt > st[Index(suc, N(true) - 1)]) {
+				printf("\nPrecedence violation: activity %d finishes at %d, but successor %d starts at %d",
+					act[i].id, st[i] + act[i].pt, suc, st[Index(suc, N(true) - 1)]);
 				MostrarSolucao();
 				return false;
 			}
 
 	// add instants when activities start and end
 	instants = st;
-	for (int i = 1; i <= N(); i++)
+	for (int i = 0; i < N(true); i++)
 		instants += st[i] + act[i].pt;
 	instants.BeASet();
 	bestUB = instants.Last();
 
 	for (auto& t : instants) {
-		for (int i = 1; i <= N(); i++)
+		for (int i = 0; i < N(true); i++) {
 			if (st[i] == t) {
-				onProgress += i;
+				onProgress += act[i].id;
 				for (int k = 0; k < R(); k++)
 					resUsed[k] += act[i].res[k];
 			}
-			else if (st[i] + act[i].pt == t) {
-				onProgress -= i;
+			if (st[i] + act[i].pt == t) {
+				onProgress -= act[i].id;
 				for (int k = 0; k < R(); k++)
 					resUsed[k] -= act[i].res[k];
 			}
+		}
 		for (int k = 0; k < R(); k++)
 			if (resUsed[k] > capacity[k]) {
 				printf("\nResource violation in %d: resource %d use %d, capacity %d", t, k, resUsed[k], capacity[k]);
@@ -525,7 +1045,6 @@ bool CRCPSP::VerificarSolucao(const TVector<int64_t>& satSol, int metodo) {
 				return false;
 			}
 	}
-
 	return true;
 }
 
@@ -539,9 +1058,12 @@ void CRCPSP::MostrarSolucao() {
 
 	// add instants when activities start and end
 	instants = st;
-	for (int i = 1; i <= N(); i++)
-		instants += st[i] + act[i].pt;
+	for (int i = 0; i < N(true); i++)
+		if (st[i] >= 0)
+			instants += st[i] + act[i].pt;
+	instants += 0;
 	instants.BeASet();
+	instants -= -1; // remove the code for activity not scheduled
 
 	lines += TString().printf("  t%s", Icon(EIcon::TEMPO));
 	for (int k = 0; k < R(); k++)
@@ -550,21 +1072,30 @@ void CRCPSP::MostrarSolucao() {
 
 	for (auto& t : instants) {
 		lines += TString().printf("%3d%s", t, Icon(EIcon::TEMPO));
-		for (int i = 1; i <= N(); i++)
+		for (int i = 0; i < N(true); i++) {
 			if (st[i] == t) {
-				onProgress += i;
+				onProgress += act[i].id;
 				for (int k = 0; k < R(); k++)
 					resUsed[k] += act[i].res[k];
 			}
-			else if (st[i] + act[i].pt == t) {
-				onProgress -= i;
+			if (st[i] >= 0 && st[i] + act[i].pt == t) {
+				onProgress -= act[i].id;
 				for (int k = 0; k < R(); k++)
 					resUsed[k] -= act[i].res[k];
 			}
+		}
 		for (int k = 0; k < R(); k++)
 			lines.Last() += Res2Str(resUsed[k], k);
-		for (auto& activity : onProgress)
+		int count = 0;
+		for (auto& activity : onProgress) {
+			if (count++ >= 10) {
+				count = 0;
+				lines += TString().printf("   %s", Icon(EIcon::TEMPO));
+				for (int k = 0; k < R(); k++)
+					lines.Last() += Res2Str(0, k);
+			}
 			lines.Last() += Act2Str(activity, 0, 1);
+		}
 	}
 	MostraCaixa(lines);
 }
@@ -575,17 +1106,24 @@ void CRCPSP::Serial(TVector<int> ids) {
 	int horizon = 0;
 	TVector<TVector<int>> resAvailable;
 	resAvailable.Count(R());
-	st.Count(N(true)).Reset(0);
+	st.Count(N(true)).Reset(-1);
 	for (auto& activity : act)
 		horizon += activity.pt;
 	for (int k = 0; k < R(); k++)
 		resAvailable[k].Count(horizon).Reset(capacity[k]);
+
+	if (Parametro(NIVEL_DEBUG) >= COMPLETO) {
+		printf("\nSerial: ");
+		for (auto& i : ids)
+			printf("%s", *Act2Str(act[i].id));
+	}
+
 	for (auto& id : ids) {
-		int startTime = 0;
+		int startTime = ES(act[id]);
 		// check predecessors of this activity, when finish
 		for (auto& pred : act[id].pred)
-			if (startTime < st[pred] + act[pred].pt)
-				startTime = st[pred] + act[pred].pt;
+			if (startTime < st[Index(pred)] + act[Index(pred)].pt)
+				startTime = st[Index(pred)] + act[Index(pred)].pt;
 		// find the first time slot where resources are available for the duration of the activity
 		while (true) {
 			bool canSchedule = true;
@@ -603,6 +1141,12 @@ void CRCPSP::Serial(TVector<int> ids) {
 				break;
 			}
 		}
+		if (Parametro(NIVEL_DEBUG) >= DETALHE) {
+			printf("\ns[ %s] = %d ", *Act2Str(act[id].id, 0, 3), st[id]);
+			if (Parametro(NIVEL_DEBUG) >= COMPLETO)
+				MostrarSolucao();
+		}
+
 	}
 }
 
@@ -615,19 +1159,23 @@ void CRCPSP::CPM(TVector<int>& es, TVector<int>* ls, int makespan) {
 	es.Count(N(true)).Reset(0);
 	for (int i = 0; i < N(true); i++) {
 		es[i] = 0;
-		for (auto& pred : act[i].pred)
-			if (es[i] < es[pred] + act[pred].pt)
-				es[i] = es[pred] + act[pred].pt;
-	}
-	if (makespan < 0)
-		makespan = es.Last();
-	if (ls != NULL) {
-		for (int i = N(true) - 1; i >= 0; i--) {
-			(*ls)[i] = makespan - act[i].pt;
-			for (auto& suc : act[i].suc)
-				if ((*ls)[i] > (*ls)[suc] - act[i].pt)
-					(*ls)[i] = (*ls)[suc] - act[i].pt;
+		for (auto& pred : act[i].pred) {
+			int j = Index(pred);
+			if (es[i] < es[j] + act[j].pt)
+				es[i] = es[j] + act[j].pt;
 		}
+	}
+	if (makespan < 0) {
+		makespan = es.Last();
+		if (ls != NULL)
+			for (int i = N(true) - 1; i >= 0; i--) {
+				(*ls)[i] = makespan - act[i].pt;
+				for (auto& suc : act[i].suc) {
+					int j = Index(suc, N(true) - 1);
+					if ((*ls)[i] > (*ls)[j] - act[i].pt)
+						(*ls)[i] = (*ls)[j] - act[i].pt;
+				}
+			}
 	}
 }
 
@@ -635,41 +1183,58 @@ void CRCPSP::CPM(TVector<int>& es, TVector<int>* ls, int makespan) {
 // correct id order according to network of predecessors and successors (for scheduling scheme methods)
 void CRCPSP::TopologicalSort(TVector<int>& ids) {
 	TBits notProcessed;
+
 	notProcessed.Count((N(true) + 63) / 64).Reset(0);
 	notProcessed = ~notProcessed;
+
 	for (int i = 0; i < N(true); i++) {
 		// all predecessors need to be processed
 		if (act[ids[i]].predBits & notProcessed) {
 			// find the next activity that can be processed
 			for (int j = i + 1; j < N(true); j++) {
 				if (!(act[ids[j]].predBits & notProcessed)) {
-					// swap ids[i] and ids[j]
-					int temp = ids[i];
-					ids[i] = ids[j];
-					ids[j] = temp;
+					// swap ids[j]  ids[i] 
+					int temp = ids[j];
+					ids[j] = ids[i];
+					ids[i] = temp;
 					break;
 				}
 			}
 		}
-		notProcessed.SetBit(ids[i], false); // mark this activity as processed
+		if (!(act[ids[i]].predBits & notProcessed))
+			notProcessed.SetBit(ids[i], false); // mark this activity as processed
 	}
 }
 
 // show the instance data (for debugging)
 void CRCPSP::Debug(bool completo) {
+	int level = -1;
 	TVector<TString> lines;
 	lines += TString().printf("Instância: %s%d.rcp (%s%d %s%d)",
 		*ficheiroInstancia, instancia.valor, Icon(EIcon::LB), bestLB, Icon(EIcon::UB), bestUB);
-	lines += TString().printf(" ID%sPT%s", Icon(EIcon::ID), Icon(EIcon::TEMPO));
+	lines += TString().printf(" ID%s  h↤PT↦t  %sPL%s", Icon(EIcon::ID), Icon(EIcon::TEMPO), Icon(EIcon::LIMITE));
 	for (int k = 0; k < R(); k++)
 		lines.Last() += Res2Str(capacity[k], k);
-	lines.Last().printf("Pred%s", Icon(EIcon::ID));
-	for (int i = 0; i < N(true); i++) {
-		lines += Act2Str(i, 3).printf("%2d%s", act[i].pt, Icon(EIcon::TEMPO));
+	lines.Last().printf("Pred%sSuc", Icon(EIcon::ID));
+	for (auto& activity : act) {
+		lines += Act2Str(activity.id, 3).printf("%s↤%s↦%s%s",
+			*PT2Str(activity.head, true),
+			*PT2Str(activity.pt),
+			*PT2Str(activity.tail, true),
+			Icon(EIcon::TEMPO));
+		if (activity.pLevel != level)
+			lines.Last().printf("%2d%s", level = activity.pLevel, Icon(EIcon::LIMITE));
+		else
+			lines.Last().printf("  %s", Icon(EIcon::LIMITE));
 		for (int k = 0; k < R(); k++)
-			lines.Last() += Res2Str(act[i].res[k], k);
-		for (auto& pred : act[i].pred)
-			lines.Last() += Act2Str(pred);
+			lines.Last() += Res2Str(activity.res[k], k);
+		for (auto& pred : activity.pred)
+			if (pred > 0) // do not show dummy activity
+				lines.Last() += Act2Str(pred);
+		lines.Last().printf("%s", Icon(EIcon::ID));
+		for (auto& suc : activity.suc)
+			if (suc <= N())
+				lines.Last() += Act2Str(suc);
 	}
 	MostraCaixa(lines);
 }
@@ -694,19 +1259,20 @@ TString CRCPSP::Res2Str(int usage, int resource, bool compact) {
 // extra: 0 - only activity ID, 1 - resources and predecessors, 2 - processing time and predecessors
 TString CRCPSP::Act2Str(int id, int space, int extra) {
 	TString resText, predText;
+	TActivity& activity = act[Index(id)];
 	if (extra == 2 || extra == 3)
-		resText.printf(":%d%s", act[id].pt, extra == 3 ? ":" : "");
+		resText.printf(":%d%s", activity.pt, extra == 3 ? ":" : "");
 	for (int k = 0; (extra == 1 || extra == 3) && k < R(); k++)
-		if (act[id].res[k] > 0) {
+		if (activity.res[k] > 0) {
 			if (resText.Empty())
 				resText = ":";
-			resText += Res2Str(act[id].res[k], k, true);
+			resText += Res2Str(activity.res[k], k, true);
 		}
-	for (int j = 0; extra > 0 && j < act[id].pred.Count(); j++)
-		if (act[id].pred[j] > 0) { // do not show dummy activity 
+	for (int j = 0; extra > 0 && j < activity.pred.Count(); j++)
+		if (activity.pred[j] > 0) { // do not show dummy activity 
 			if (predText.Empty())
 				predText = "(";
-			predText += Act2Str(act[id].pred[j]);
+			predText += Act2Str(activity.pred[j]);
 		}
 	if (!predText.Empty()) // last space became a parenthesis
 		predText[predText.Count() - 2] = ')';
@@ -714,6 +1280,16 @@ TString CRCPSP::Act2Str(int id, int space, int extra) {
 		return TString().printf("%s%d%s%s%s ", *HSL(id * 360.0 / N(true), 1, 0.5, false), id, *HSL(), *resText, *predText);
 	return TString().printf("%s%*d%s%s%s%s", *HSL(id * 360.0 / N(true), 1, 0.5, false), space, id, *HSL(), *resText, *predText, Icon(EIcon::ID));
 }
+
+TString CRCPSP::PT2Str(int pt, bool headTail) {
+	if (headTail) {
+		if (pt == 0)
+			return TString("   ");
+		return TString().printf("%s%3d%s", *HSL(0, 0, 0.5, false), pt, *HSL());
+	}
+	return TString().printf("%2d", pt);
+}
+
 
 
 
@@ -729,89 +1305,60 @@ int64_t CRCPSP::Indicador(int id) {
 		return bestLB;
 	else if (id == IND_CALLS)
 		return calls;
+	else if (id == IND_BASE_LB)
+		return BaseLB(Parametro(BASE_LB), Parametro(LB_MODE));
+	else if (id == IND_PR)
+		return BaseUB(Parametro(BASE_PR), Parametro(PR_MODE));
 
 	if (id >= IND_CNC && id <= IND_TF) {
-		MorphologicalIndicators();
+		MorphologicalIndicators(Parametro(IND_MODE) == 1);
 		switch (id) {
 		case IND_CNC:
-			return (int64_t)(indCNC * 1000);
+			return (int64_t)(indCNC * 1000 + 0.5);
 		case IND_OS:
-			return (int64_t)(indOS * 1000);
+			return (int64_t)(indOS * 1000 + 0.5);
 		case IND_SP:
-			return (int64_t)(indSP * 1000);
+			return (int64_t)(indSP * 1000 + 0.5);
 		case IND_AD:
-			return	(int64_t)(indAD * 1000);
+			return	(int64_t)(indAD * 1000 + 0.5);
 		case IND_LA:
-			return (int64_t)(indLA * 1000);
+			return (int64_t)(indLA * 1000 + 0.5);
 		case IND_I5:
-			return (int64_t)(indI5 * 1000);
+			return (int64_t)(indI5 * 1000 + 0.5);
 		case IND_TF:
-			return	(int64_t)(indTF * 1000);
+			return (int64_t)(indTF * 1000 + 0.5);
 		}
 	}
 
 	switch (id) {
 	case IND_RF:
-		return RF();
+		return (int64_t)(1000 * RF() + 0.5);
 	case IND_RU:
-		return RU();
+		return (int64_t)(1000 * RU() + 0.5);
 	case IND_RS:
-		return RS();
+		return (int64_t)(1000 * RS() + 0.5);
 	case IND_RC:
-		return RC();
+		return (int64_t)(1000 * RC() + 0.5);
 	case IND_WPREC:
-		return W();
+		return (int64_t)(1000 * W() + 0.5);
 	case IND_WALL:
-		return W(false);
+		return (int64_t)(1000 * W(false) + 0.5);
 	case IND_FS21:
-		return FS(2, 1);
+		return (int64_t)(1000 * FS(2, 1) + 0.5);
 	case IND_FS22:
-		return FS(2, 2);
+		return (int64_t)(1000 * FS(2, 2) + 0.5);
 	case IND_FS31:
-		return FS(3, 1);
+		return (int64_t)(1000 * FS(3, 1) + 0.5);
 	case IND_FS32:
-		return FS(3, 2);
-	case IND_LB_CPM:
-		return LBCPM();
-	case IND_LB_C:
-		return LBC();
-	case IND_LB_CPC:
-		return LBCPC();
-	case IND_LB_CS:
-		return LBCS();
-	case IND_LB_CT:
-		return LBCT();
-	case IND_LB_IP:
-		return LBIP();
-	case IND_LB_IT:
-		return LBIT();
-	case IND_LB_NP0:
-		return LBNodePacking(0);
-	case IND_LB_NP1:
-		return LBNodePacking(1);
-	case IND_LB_NP2:
-		return LBNodePacking(2);
-	case IND_LB_PM0:
-		return LBParallelMachine(0);
-	case IND_LB_PM1:
-		return LBParallelMachine(1);
-	case IND_LB_PM2:
-		return LBParallelMachine(2);
-	case IND_LB_PM3:
-		return LBParallelMachine(3);
-	case IND_LB_PR:
-		return LBPR();
-	case IND_LB_TP:
-		return LBTP();
-	case IND_LB_ALL:
-		return LBAll();
+		return (int64_t)(1000 * FS(3, 2) + 0.5);
 	default:
 		return 0;
 	}
 }
 
-void CRCPSP::MorphologicalIndicators() {
+void CRCPSP::MorphologicalIndicators(bool duration) {
 	TVector<int> PL, RL, WA, n;
+	int maxPT = 1, sumPT = 0;
 
 	if (mophologicOK)
 		return;
@@ -819,28 +1366,63 @@ void CRCPSP::MorphologicalIndicators() {
 	PL.Count(N(true)).Reset(0);
 	RL.Count(N(true)).Reset(0);
 
-	// update PL and RL
+	// update PL and RL (with duration just use ES and LS when appropriate)
 	for (int i = 0; i < N(true); i++) {
 		PL[i] = 0;
 		for (auto pred : act[i].pred)
-			if (PL[pred] + 1 > PL[i])
-				PL[i] = PL[pred] + 1;
+			if (PL[Index(pred)] + 1 > PL[i])
+				PL[i] = PL[Index(pred)] + 1;
 	}
-	int M = PL.Last() - 1; // number of levels (without dummy activities)
+	// number of levels (without dummy activities) or CPM in case of duration
+	int M = PL.Last() - 1;
+
+	if (Parametro(NIVEL_DEBUG) >= COMPLETO) {
+		printf("\nPL: ");
+		for (auto& pl : PL)
+			printf("%d ", pl);
+		printf("M=%d.", M);
+	}
+
 	for (int i = N(true) - 1; i >= 0; i--) {
 		RL[i] = M + 1;
 		for (auto suc : act[i].suc)
-			if (RL[suc] - 1 < RL[i])
-				RL[i] = RL[suc] - 1;
+			if (RL[Index(suc, N(true) - 1)] - 1 < RL[i])
+				RL[i] = RL[Index(suc, N(true) - 1)] - 1;
 	}
-	if (N() > 0)
-		indSP = (double)(M - 1) / (N() - 1); // (M-1)/(N-1)
+	if (Parametro(NIVEL_DEBUG) >= COMPLETO) {
+		printf("\nRL: ");
+		for (auto& rl : RL)
+			printf("%d ", rl);
+	}
+
+	if (duration) {
+		// calculate maxPT, otherwise is 1
+		for (auto& activity : act) {
+			if (maxPT < activity.pt)
+				maxPT = activity.pt;
+			sumPT += activity.pt;
+		}
+	}
+	if (N() > 0) {
+		if (duration)
+			indSP = (double)(ES(act.Last()) - maxPT) / (sumPT - maxPT);
+		else
+			indSP = (double)(M - 1) / (N() - 1); // (M-1)/(N-1)
+	}
 	else
 		indSP = 0;
 
 	WA.Count(M).Reset(0);
-	for (int i = 1; i <= N(); i++) // ignore dummy activities
+
+	for (int i = 1; i <= N(); i++)
+		// ignore dummy activities
 		WA[PL[i] - 1]++;
+
+	if (Parametro(NIVEL_DEBUG) >= COMPLETO) {
+		printf("\nWA:");
+		for (auto& w : WA)
+			printf("%d ", w);
+	}
 	if (M == 1 || M == N())
 		indAD = 0;
 	else {
@@ -849,61 +1431,78 @@ void CRCPSP::MorphologicalIndicators() {
 		double avgDev = 0;
 		for (auto w : WA)
 			avgDev += abs(w - av);
-
 		indAD = (double)M * avgDev / (2 * (N() - M) * (M - 1));
 	}
 	// calculation of total number of short precedence relations D
 	double D = 0;
 	for (int k = 0; k < M - 1; k++)
 		D += WA[k] * WA[k + 1];
+
+	//printf("\nD: %f.", D); fflush(stdout);
 	// maximal size precedence relation size V
 	int V = 0;
 	for (int i = 1; i <= N(); i++)
 		for (auto& suc : act[i].suc)
-			if (suc <= N() && V < PL[suc] - PL[i])
-				V = PL[suc] - PL[i];
+			if (Index(suc, N(true) - 1) <= N() && V < PL[Index(suc, N(true) - 1)] - PL[i])
+				V = PL[Index(suc, N(true) - 1)] - PL[i];
+	//printf("\nV: %d.", V); fflush(stdout);
 	n.Count(V).Reset(0);
 	for (int i = 1; i <= N(); i++)
 		for (auto& suc : act[i].suc)
-			if (suc <= N())
-				n[PL[suc] - PL[i]]++;
-	if (D == 0 || D == N() - WA[0])
+			if (Index(suc, N(true) - 1) <= N())
+				n[PL[Index(suc, N(true) - 1)] - PL[i] - 1]++;
+
+	if (Parametro(NIVEL_DEBUG) >= COMPLETO) {
+		printf("\nn:");
+		for (auto& w : n)
+			printf("%d ", w);
+		fflush(stdout);
+	}
+
+	double WA0 = WA[0];
+	if (D == 0 || D == N() - WA0)
 		indLA = 1;
 	else
-		indLA = (double)(n[0] - (N() - WA[0])) / (D - (N() - WA[0]));
+		indLA = (double)(n[0] - (N() - WA0)) / (D - (N() - WA0));
+
+	//printf("\nLA: %f.", indLA); fflush(stdout);
 
 	// total direct precedence relations
 	uint64_t TDP = 0;
 	for (auto& precs : n)
 		TDP += precs;
 	indCNC = (double)TDP / N();
+	//printf("\nCNC: %f.", indCNC); fflush(stdout);
 
-	if (TDP == 0 || TDP == N() - WA[0])
+	if (TDP == 0 || TDP == (uint64_t)(N() - WA0))
 		indI5 = 1;
 	else {
 		double count = n[0];
 		for (int k = 1; k < V; k++) // O(N)
 			count += 1.0 * n[k] * (k + 1 - (M - 1)) / (1 - (M - 1));
 
-		indI5 = (double)(count - (N() - WA[0])) / (TDP - (N() - WA[0]));
+		indI5 = (double)(count - (N() - WA0)) / (TDP - (N() - WA0));
 	}
+	//printf("\nI5: %f.", indI5); fflush(stdout);
 
-	if (N() == M || M == 1 || N() == 0)
+	if (duration ? M == sumPT || M == 0 : N() == M || M == 1 || N() == 0)
 		indTF = 0;
 	else {
 		int count = 0;
 		for (int i = 1; i <= N(); i++)
-			count += RL[i] - PL[i];
-		indTF = (double)count / ((N() - M) * (M - 1));
+			count += (duration ? LS(act[i]) - ES(act[i]) : RL[i] - PL[i]);
+		indTF = (double)count / (duration ? (N() - M) * ES(act.Last()) : (N() - M) * (M - 1));
 	}
+	//printf("\nTF: %f.", indTF); fflush(stdout);
 
 	// OS --- need direct and indirect precedence relations
 	int OSCount = 0;
 	for (int i = 1; i <= N(); i++)
 		for (int j = 1; j < i; j++)
-			if (predBits[i].GetBit(j)) // if j is a predecessor of i
-				OSCount++;
-	indOS = (double)(OSCount * 2) / (N() * (N() - 1)); // 2*OS/(N*(N-1))
+			if (act[i].predBits.GetBit(j)) // if j is a predecessor of i
+				(duration ? OSCount += act[i].pt * act[j].pt : OSCount++);
+	indOS = (double)(OSCount * 2) / (duration ? sumPT * (sumPT - 1) : N() * (N() - 1)); // 2*OS/(N*(N-1))
+	//printf("\nOS: %f.", indOS); fflush(stdout);
 	mophologicOK = true;
 }
 
@@ -916,6 +1515,7 @@ double CRCPSP::RU() {
 		for (auto& res : activity.res)
 			if (res > 0)
 				totalUse++;
+	TProcura::Debug(DETALHE, false, "\nTotal use: %d.", totalUse);
 	return (double)totalUse / N();
 }
 
@@ -931,44 +1531,342 @@ double CRCPSP::RC() { // average of utilization, when a resource is used
 	for (auto& activity : act)
 		for (int k = 0; k < R(); k++)
 			if (activity.res[k] > 0) {
-				avgUse += (capacity[k] > 0 ? activity.res[k] / capacity[k] : 0);
+				avgUse += (capacity[k] > 0 ? (double)activity.res[k] / capacity[k] : 0);
 				totalUse++;
 			}
+	TProcura::Debug(DETALHE, false, "\nAvg. use: %.3f, Total use: %d.", avgUse, totalUse);
 	if (totalUse == 0)
 		return 0;
 	return avgUse / totalUse;
 }
 
 double CRCPSP::RS() {
-	return 0;
+	double sumRS = 0;
+	for (int k = 0; k < R(); k++) {
+		TVector<int> resUse;
+		resUse.Count(ES(act.Last())).Reset(0);
+		for (auto& activity : act)
+			for (int t = ES(activity); t < EF(activity); t++)
+				resUse[t] += activity.res[k];
+		int maxRes = resUse.First();
+		for (auto& res : resUse)
+			if (maxRes < res)
+				maxRes = res;
+		int minRes = act[1].res[k];
+		for (int i = 2; i <= N(); i++)
+			if (minRes < act[i].res[k])
+				minRes = act[i].res[k];
+		double iRS = 1;
+		if (!(maxRes == minRes || capacity[k] >= maxRes))
+			iRS = (double)(capacity[k] - minRes) / (maxRes - minRes);
+		TProcura::Debug(DETALHE, false, "\nMin %d, max res %d, cap %d, iRS %.3f",
+			minRes, maxRes, capacity[k], iRS);
+		sumRS += iRS;
+	}
+	return sumRS / R();
 }
+
+
+// feasible sets 
+// mode - 0 - only precedence relations, 1 - only resources, 2 - precedence relations and resources
+//       -1 - count only combinations
+//        3 - resource waste procedure (identify maximal resource usage of an activity in all FS, 
+//            if maximal resource usage is less than capacity, add this to the activity
+// max - size of the greatest compatible set (if limit is not set)
+// limit - if set, is the limit on the size of the feasible sets, counting only these ones
+// return value is the number of calls (feasible sets of any size)
+int64_t CRCPSP::FeasibleSets(int mode, int& max, int limit, TVector<int>* i, TBits incompatible, TVector<int> resUse) {
+	static TVector<TBits> actIncomp;
+	static int64_t calls, maxEffort;
+	static TVector<int> minResUse;
+	static int activityLimit;
+	static TVector<int> id;
+	bool firstLevel = (i == NULL);
+	if (mode < 0) { // count combinations up to limit 
+		int64_t result = 0, combinations = 1;
+		if (limit <= 0 || limit > N())
+			limit = N();
+		for (int i = N(), j = 1; i > 1 && j <= limit; i--, j++) {
+			combinations *= i;
+			combinations /= j;
+			if (j > 1)
+				result += combinations;
+			TProcura::Debug(COMPLETO, false, "\n%d: %lld (%lld)", j, combinations, result);
+		}
+		TProcura::Debug(DETALHE, false, "\nComb(%d,%d): %lld ", limit, N(), result);
+		return result;
+	}
+
+	if (i == NULL) { // first call + preprocessing
+		TVector<int>::erro = 0; // first value to iterate is 1, if i.Empty()
+		i = new TVector<int>();
+		actIncomp.Count(act.Count());
+		for (int j = 0; mode != 1 && j < N(true); j++)
+			(actIncomp[j] = act[j].predBits | act[j].sucBits).SetBit(j, true);
+		resUse.Count(R()).Reset(0);
+		calls = 0;
+		maxEffort = 1000000;
+		if (mode == 3) {
+			TVector<int> weight;
+			for (auto& activity : act)
+				weight += activity.pt;
+			weight.Sort(&id); // process top first, with higher weight 
+			//id.Remove(0).Remove(N(true) - 1); // remove dummy activities
+			limit = -1; // do not limit the size of the feasible sets, to identify maximal resource usage of each activity
+			if (Parametro(RES_WASTE) == 0)
+				return calls;
+		}
+	}
+	else if (limit < 0) // if limit>=0 the calls are called when i->Count()==limit 
+		calls++;
+
+	if (--maxEffort < 0) {
+		TProcura::Debug(DETALHE, false, "\nFeasible sets: maximal effort limit.");
+		return calls;
+	}
+	if (mode == 3) {
+		int itWR;
+		// need to process all subsets valid in all activities
+		// if i is empty, process all activities, from last to the end
+		// if i have one element, start from the last also, but skip the first element
+		// all the rest start from the last element -1
+		if (i->Count() <= 1)
+			itWR = id.Count() - 1;
+		else
+			itWR = id.Find(i->Last()) - 1;
+		if (!i->Empty() && id[itWR] == i->First())
+			itWR--;
+		for (i->Push(id[itWR--]);
+			(itWR >= 0) && maxEffort >= 0;
+			i->Last() = id[itWR--]) {
+			if (!incompatible.GetBit(i->Last()))
+			{ // resources and precedence relations
+				bool OK = true;
+				TVector<int> newResUse(R());
+
+				if (act[i->Last()].pt == 0)
+					continue;
+
+				if (firstLevel) {
+					switch (Parametro(RES_WASTE)) {
+					case 1: activityLimit = 10 * act[i->Last()].pt; break;
+					case 2: activityLimit = 100 * act[i->Last()].pt; break;
+					case 3: activityLimit = 1000 * act[i->Last()].pt; break;
+					default: activityLimit = 0; break;
+					}
+					minResUse.Count(R()).Reset(0); // reset minimal resource usage for each resource
+				}
+
+				for (int k = 0; OK && k < R(); k++)
+					OK = ((newResUse[k] = resUse[k] + act[i->Last()].res[k]) <= capacity[k]);
+				if (OK) {
+					if (mode == 3) { // update minimal resource usage for each resource
+						bool existWaste = false;
+						for (int k = 0; k < R(); k++) {
+							if (minResUse[k] < newResUse[k])
+								minResUse[k] = newResUse[k];
+							existWaste |= (minResUse[k] < capacity[k]);
+
+						}
+						if (false) {
+							printf("\nFeasible set:");
+							for (auto& item : *i)
+								printf("%s ", *Act2Str(act[item].id));
+							printf(" - ");
+							for (int k = 0; k < R(); k++)
+								printf("%s", *Res2Str(newResUse[k], k));
+							printf(" - ");
+							for (int k = 0; k < R(); k++) {
+								printf("%s", *Res2Str(minResUse[k], k));
+								if (minResUse[k] < capacity[k])
+									printf("%d ", capacity[k] - minResUse[k]);
+							}
+							printf(" (%d) %s", activityLimit,
+								existWaste ? "Resource Waste" : "");
+						}
+						if (!existWaste || --activityLimit <= 0) {
+							if (false && !existWaste)
+								printf(" - No more waste for this activity.");
+							else if (false && activityLimit <= 0)
+								printf(" - Activity limit reached for this activity.");
+							if (firstLevel)
+								continue; // next activity
+							i->Pop();
+							return calls; // no waste on activity, continue to the next activity
+						}
+					}
+					if (limit < 0 || i->Count() < limit)
+						FeasibleSets(mode, max, limit, i, incompatible | actIncomp[i->Last()], newResUse);
+					if (limit >= 0 && i->Count() >= 2 && i->Count() <= limit) {
+						calls++;
+						DebugFeasibleSet(mode, *i, calls);
+					}
+					// update maximal feasible set found
+					if (limit < 0 && max < i->Count()) {
+						max = i->Count();
+						DebugFeasibleSet(mode, *i, max);
+					}
+					// check if exist waste
+					if (firstLevel && activityLimit > 0) {
+						for (int k = 0; k < R(); k++)
+							if (minResUse[k] < capacity[k]) {
+								act[i->Last()].res[k] += capacity[k] - minResUse[k];
+								TProcura::Debug(COMPLETO, false, "\nActivity %s: res %d on resource %d added to avoid waste (limit %d).",
+									*Act2Str(act[i->Last()].id), capacity[k] - minResUse[k], k, activityLimit);
+							}
+					}
+					else if (!firstLevel) {
+						// check if exist waste
+						bool existWaste = false;
+						for (int k = 0; k < R(); k++)
+							existWaste |= (minResUse[k] < capacity[k]);
+						if (!existWaste) {
+							i->Pop();
+							return calls; // no waste on activity, continue to the next activity
+						}
+					}
+				}
+			}
+		}
+	}
+	else {
+		for (i->Push(i->Last() + 1);
+			i->Last() <= N() && maxEffort >= 0;
+			i->Last()++)
+			// check if is parallel with all others
+			if (mode == 1) { // check only resources
+				bool OK = true;
+				TVector<int> newResUse(R());
+				for (int k = 0; OK && k < R(); k++)
+					OK = ((newResUse[k] = resUse[k] + act[i->Last()].res[k]) <= capacity[k]);
+				if (OK) {
+					if (limit < 0 || i->Count() < limit)
+						FeasibleSets(mode, max, limit, i, {}, newResUse);
+					if (limit >= 0 && i->Count() >= 2 && i->Count() <= limit) {
+						calls++;
+						DebugFeasibleSet(mode, *i, calls);
+					}
+					// update maximal feasible set found
+					if (limit < 0 && max < i->Count()) {
+						max = i->Count();
+						DebugFeasibleSet(mode, *i, max);
+					}
+				}
+			}
+			else if (!incompatible.GetBit(i->Last())) {
+				if (mode == 0) { // only precedence relations
+					if (limit < 0 || i->Count() < limit)
+						FeasibleSets(mode, max, limit, i, incompatible | actIncomp[i->Last()]);
+					if (limit >= 0 && i->Count() >= 2 && i->Count() <= limit) {
+						calls++;
+						DebugFeasibleSet(mode, *i, calls);
+					}
+					// update maximal feasible set found
+					if (limit < 0 && max < i->Count()) {
+						max = i->Count();
+						DebugFeasibleSet(mode, *i, max);
+					}
+				}
+				else { // resources and precedence relations
+					bool OK = true;
+					TVector<int> newResUse(R());
+
+					for (int k = 0; OK && k < R(); k++)
+						OK = ((newResUse[k] = resUse[k] + act[i->Last()].res[k]) <= capacity[k]);
+					if (OK) {
+						if (limit < 0 || i->Count() < limit)
+							FeasibleSets(mode, max, limit, i, incompatible | actIncomp[i->Last()], newResUse);
+						if (limit >= 0 && i->Count() >= 2 && i->Count() <= limit) {
+							calls++;
+							DebugFeasibleSet(mode, *i, calls);
+						}
+						// update maximal feasible set found
+						if (limit < 0 && max < i->Count()) {
+							max = i->Count();
+							DebugFeasibleSet(mode, *i, max);
+						}
+					}
+				}
+			}
+	}
+	i->Pop();
+	if (i->Empty())
+		delete i;
+	return calls;
+}
+
+void CRCPSP::DebugFeasibleSet(int mode, TVector<int>& i, int value) {
+	if (ShowValue(value)) {
+		TProcura::Debug(DETALHE, false, "\n%d: ", value);
+		if (Parametro(NIVEL_DEBUG) >= COMPLETO)
+			for (auto& item : i)
+				printf("%s ", *Act2Str(act[item].id, 0, mode == 0 ? 0 : 1));
+	}
+}
+
+bool CRCPSP::ShowValue(int value) {
+	// first 10, and then only 10, 20, 50, 100, 200, 500, ...
+	if (value < 10)
+		return true;
+	while (value % 10 == 0)
+		value /= 10;
+	return value == 1 || value == 2 || value == 5;
+}
+
+
 double CRCPSP::W(bool prec) { // WPREC, WALL
-	return 0;
+	int W = 1; // calculate the maximal compatible set (precedence only, or resource and precedence)
+
+	FeasibleSets(prec ? 0 : 2, W);
+
+	return (double)(W - 1) / (N() - 1);
 }
 double CRCPSP::FS(int x, int u) { // FS21, FS22, FS31, FS32
 	int64_t FS = 0, ref = 0;
+	int max;
 
 	// x=2 all feasible pairs
 	// x=3 all feasible triples
 	// u=1 all possible pairs/triplets,
 	// u=2 all possible pairs/triplets that are not precedence-related 
+	FS = FeasibleSets(2, max, x);
 
+	// calculate reference
+	// reference is only precedence relations counting if u==2, otherwise is just combinations
+	ref = FeasibleSets(u == 1 ? -1 : 0, max, x);
+
+	TProcura::Debug(DETALHE, false, "\nFS: %lld ref: %lld", FS, ref);
 
 	return (ref > 0 ? (double)FS / ref : 0);
 }
 
 // generate a critical path from es/ls data
-TVector<int> CRCPSP::CriticalPath(TVector<int>& es, TVector<int>& ls) {
+TVector<int> CRCPSP::CriticalPath(TVector<int>& es, TVector<int>& ls, int& holes) {
 	TVector<int> criticalPath;
+	int current = 0;
+	holes = 0;
 	criticalPath += 0; // dummy start activity
-	while (criticalPath.Last() != N(true) - 1) {
-		int current = criticalPath.Last();
-		for (auto& suc : act[current].suc)
-			if (es[current] + act[current].pt == es[suc] && es[suc] == ls[suc]) {
+	do {
+		int minCost = 0, minSuc = -1;
+		current = Index(criticalPath.Last(), N(true) - 1);
+		for (auto& suc : act[current].suc) {
+			int sucIndex = Index(suc, N(true) - 1);
+			if (es[current] + act[current].pt == es[sucIndex] &&
+				es[sucIndex] == ls[sucIndex]) {
 				criticalPath += suc;
+				minSuc = -1;
 				break;
 			}
-	}
+			else if (minSuc < 0 || minCost > es[sucIndex] - (es[current] + act[current].pt)) {
+				minSuc = suc;
+				minCost = es[sucIndex] - (es[current] + act[current].pt);
+			}
+		}
+		if (minSuc >= 0) {
+			criticalPath += minSuc;
+			holes += minCost;
+		}
+	} while (!act[current].suc.Empty());
 	return criticalPath;
 }
 
@@ -977,41 +1875,46 @@ void CRCPSP::MostraCP(TVector<int> criticalPath) {
 	for (auto& activity : criticalPath) {
 		TProcura::Debug(DETALHE, true, count++ % 6 != 0 ? "%s" : "%s\n", *Act2Str(activity));
 		TProcura::Debug(COMPLETO, false, "\n%2d%s%s", t, Icon(EIcon::TEMPO), *Act2Str(activity, 0, 3));
-		t += act[activity].pt;
+		t += act[Index(activity)].pt;
 	}
 }
 
 int CRCPSP::LBCPM() {
-	TVector<int> es, ls;
-	CPM(es, Parametro(NIVEL_DEBUG) >= DETALHE ? &ls : NULL);
-
+	// already calculated in InitialSetup
 	if (Parametro(NIVEL_DEBUG) >= DETALHE) {
+		TVector<int> es, ls;
+		int holes;
+		CPM(es, &ls); // not use the oficial ES/LS since my contain LBs
 		printf("\nCritical path: ");
-		MostraCP(CriticalPath(es, ls));
+		MostraCP(CriticalPath(es, ls, holes));
 	}
-	return es.Last();
+	return cpm;
 }
 
-int CRCPSP::LBC() {
+int CRCPSP::LBC(TBits* sel) {
 	int bound = 0;
 	TProcura::Debug(DETALHE, false, "\nLBcapacity: ");
 	for (int k = 0; k < R(); k++)
 		if (capacity[k] > 0) {
 			int workContent = 0;
-			for (auto& activity : act)
-				workContent += activity.res[k] * activity.pt;
-			if (workContent > 0 && capacity[k] > 0 && bound < (workContent - 1) / capacity[k] + 1)
-				bound = (workContent - 1) / capacity[k] + 1;
+			for (int i = 1; i <= N(); i++)
+				if (sel == NULL || sel->GetBit(i))
+					workContent += act[i].res[k] * act[i].pt;
+			int wcBound = (workContent > 0 && capacity[k] > 0 ? (workContent - 1) / capacity[k] + 1 : 0);
+			if (bound < wcBound)
+				bound = wcBound;
 			TProcura::Debug(DETALHE, false, "%s/%s=%d ",
-				*Res2Str(workContent, k, true), *Res2Str(capacity[k], k, true), (workContent - 1) / capacity[k] + 1);
+				*Res2Str(workContent, k, true), *Res2Str(capacity[k], k, true), wcBound);
 		}
 	return bound;
 }
 
 int CRCPSP::LBCPC() {
-	TVector<int> es, activities, wc;
-	int bound = 0, t = 0;
-	CPM(es);
+	TVector<int> es, lf, activities, wc;
+	int bound = 0, t = 0, fBound;
+	es.Count(N(true));
+	for (int i = 0; i < N(true); i++)
+		es[i] = ES(act[i]);
 	bound = es.Last();
 	es.Sort(&activities);
 	wc.Count(R()).Reset(0);
@@ -1054,16 +1957,70 @@ int CRCPSP::LBCPC() {
 	for (int k = 0; k < R(); k++)
 		if (wc[k] > 0 && capacity[k] > 0 && bound < t + (wc[k] - 1) / capacity[k] + 1)
 			bound = t + (wc[k] - 1) / capacity[k] + 1;
+
+	// repeat the calculation in inverse order
+	lf.Count(N(true));
+	for (int i = 0; i < N(true); i++)
+		lf[i] = LF(act[i], bound);
+	lf.Sort(&activities);
+	wc.Count(R()).Reset(0);
+	fBound = t = bound;
+	TProcura::Debug(DETALHE, false, "Inv: ");
+	for (auto& activity : activities.Invert()) {
+		if (lf[activity] != t) {
+			if (Parametro(NIVEL_DEBUG) >= DETALHE) {
+				TProcura::Debug(DETALHE, false, "%d%s ", t, Icon(EIcon::TEMPO));
+				for (int k = 0; k < R(); k++)
+					if (wc[k] > 0)
+						TProcura::Debug(DETALHE, false, "%s/%s ",
+							*Res2Str(wc[k], k, true),
+							*Res2Str(capacity[k], k, true));
+				TProcura::Debug(DETALHE, false, "\n");
+			}
+			// remove work content done 
+			for (int k = 0; k < R(); k++) {
+				wc[k] -= capacity[k] * (t - lf[activity]);
+				if (wc[k] < 0)
+					wc[k] = 0;
+			}
+			t = lf[activity];
+		}
+		TProcura::Debug(COMPLETO, false, "%s", *Act2Str(activity, 0, 3));
+		// add work content of this activity
+		for (int k = 0; k < R(); k++)
+			wc[k] += act[activity].res[k] * act[activity].pt;
+	}
+	if (Parametro(NIVEL_DEBUG) >= DETALHE) {
+		TProcura::Debug(DETALHE, false, "%d%s ", t, Icon(EIcon::TEMPO));
+		for (int k = 0; k < R(); k++)
+			if (wc[k] > 0)
+				TProcura::Debug(DETALHE, false, "%s/%s=%d ",
+					*Res2Str(wc[k], k, true),
+					*Res2Str(capacity[k], k, true),
+					fBound - t + (wc[k] - 1) / capacity[k] + 1);
+		TProcura::Debug(DETALHE, false, "\n");
+	}
+	// calculate bound to the end of the schedule
+	for (int k = 0; k < R(); k++)
+		if (wc[k] > 0 && capacity[k] > 0 && bound < fBound - t + (wc[k] - 1) / capacity[k] + 1)
+			bound = fBound - t + (wc[k] - 1) / capacity[k] + 1;
+
 	return bound;
 }
 
 int CRCPSP::LBCS() {
-	int bound = 0, ePT = 0;
+	int bound = 0, ePT = 0, holes = 0;
 	TVector<int> es, ls, criticalPath, pt, idPT;
 	TVector<TVector<int>> resUsage;
 	TBits inCP;
-	CPM(es, &ls);
-	bound = es.Last();
+
+	bound = ES(act.Last());
+	es.Count(N(true));
+	ls.Count(N(true));
+	for (int i = 0; i < N(true); i++) {
+		es[i] = ES(act[i]);
+		ls[i] = LS(act[i], bound);
+	}
 	resUsage.Count(R());
 	for (auto& usage : resUsage)
 		usage.Count(bound).Reset(0);
@@ -1072,22 +2029,27 @@ int CRCPSP::LBCS() {
 
 	// build a critical path
 	// note: other CP provide different LBs
-	criticalPath += CriticalPath(es, ls);
-	for (auto& critic : criticalPath) {
-		inCP.SetBit(critic, true);
+	criticalPath = CriticalPath(es, ls, holes);
+	for (auto critic : criticalPath) {
+		inCP.SetBit(critic = Index(critic), true);
 		for (int t = es[critic]; t < es[critic] + act[critic].pt; t++)
 			for (int k = 0; k < R(); k++)
 				resUsage[k][t] += act[critic].res[k];
 	}
 
 	if (Parametro(NIVEL_DEBUG) >= DETALHE) {
-		printf("\nCritical path: ");
+		printf("\nCritical path (%d): ", holes);
 		MostraCP(criticalPath);
 	}
 
+	// only apply if the critical path is pure, 
+	// otherwise is pointless, since can increase only maxPT
+	if (holes > 0)
+		return bound;
+
 	// process activities by decreasing PT, to maximiaze cuts
-	for (int i = 0; i < N(true); i++)
-		pt += act[i].pt;
+	for (auto& activity : act)
+		pt += activity.pt;
 	pt.Sort(&idPT);
 
 	// check for other activities, if they cannot be scheduled in the same time as critical activities
@@ -1101,8 +2063,8 @@ int CRCPSP::LBCS() {
 			// go throw all time window, and find the maximal slot compatible (maxZ)
 			// ePT can be set to pt-maxS
 			TProcura::Debug(DETALHE, false, "\n%s[%d;%d] ",
-				*Act2Str(i, 0, Parametro(NIVEL_DEBUG) >= COMPLETO ? 3 : 0),
-				es[i], ls[i] + act[i].pt - 1);
+				*Act2Str(act[i].id, 0, Parametro(NIVEL_DEBUG) >= COMPLETO ? 3 : 0),
+				es[i], ls[i] + act[i].pt - 1); fflush(stdout);
 
 			for (int t = es[i]; t < ls[i] + act[i].pt; t++) {
 				// check if is possible in instant t
@@ -1137,128 +2099,121 @@ bool CRCPSP::ResourceIncompatible(TVector<int> activities) {
 	resUsage.Count(R()).Reset(0);
 	for (auto& activity : activities)
 		for (int k = 0; k < R(); k++)
-			resUsage[k] += act[activity].res[k];
-	return ResourcesViolated(resUsage);
+			if ((resUsage[k] += act[activity].res[k]) > capacity[k])
+				return true;
+	return false;
 }
 
 
 int CRCPSP::LBIP() {
-	TVector<int> es, ls;
-	int bound, cpm;
-	CPM(es, &ls);
-	bound = cpm = es.Last();
+	TVector<int> headPT, tailPT;
+	int bound = ES(act.Last());
+	for (auto& activity : act) {
+		headPT += activity.head + activity.pt;
+		tailPT += activity.tail + activity.pt;
+	}
 
 	TProcura::Debug(DETALHE, false, "\nLBip: ");
 
 	// process all precedence OK pairs i>j
 	for (int i = 1; i <= N(); i++)
 		for (int j = i + 1; j <= N(); j++)
-			if (!predBits[j].GetBit(i)) {
-				bool resOK = true;
-				for (int k = 0; resOK && k < R(); k++)
-					resOK = (act[i].res[k] + act[j].res[k] <= capacity[k]);
-				if (!resOK) { // incompatible pair i||j
-					int lowestBound = BoundIP(i, j, es, ls);
-					if (bound < lowestBound) {
-						bound = lowestBound;
-						TProcura::Debug(DETALHE, false, " %s%d ", Icon(EIcon::LB), bound);
+			if (!act[j].predBits.GetBit(i)) {
+				int bound_ij, bound_ji;
+				if ((bound_ij = headPT[i] + tailPT[j]) > bound &&
+					(bound_ji = headPT[j] + tailPT[i]) > bound) {
+					// potential new bound if resources are incompatible
+					bool resOK = true;
+					for (int k = 0; resOK && k < R(); k++)
+						resOK = (act[i].res[k] + act[j].res[k] <= capacity[k]);
+
+					if (!resOK) { // incompatible pair i||j
+						bound = (bound_ij < bound_ji ? bound_ij : bound_ji);
+						TProcura::Debug(DETALHE, false, "\n%s%d ", Icon(EIcon::LB), bound);
+						TProcura::Debug(COMPLETO, false, "[%s> %s %d | %s> %s %d] ",
+							*Act2Str(act[i].id), *Act2Str(act[j].id), bound_ij,
+							*Act2Str(act[j].id), *Act2Str(act[i].id), bound_ji);
 					}
 				}
 			}
 
 	return bound;
-}
-
-int CRCPSP::BoundIP(int i, int j, TVector<int>& es, TVector<int>& ls) {
-	int cpm = es.Last();
-	int bound_ij = es[i] + act[i].pt + (cpm - ls[j]);
-	int bound_ji = es[j] + act[j].pt + (cpm - ls[i]);
-	int bound = (bound_ij < bound_ji ? bound_ij : bound_ji);
-
-	TProcura::Debug(COMPLETO, false, "\n%s[%d;%d] ",
-		*Act2Str(i, 0, Parametro(NIVEL_DEBUG) >= COMPLETO ? 3 : 0),
-		es[i], ls[i] + act[i].pt - 1);
-	TProcura::Debug(COMPLETO, false, "%s[%d;%d] ",
-		*Act2Str(j, 0, Parametro(NIVEL_DEBUG) >= COMPLETO ? 3 : 0),
-		es[j], ls[j] + act[j].pt - 1);
-	TProcura::Debug(DETALHE, false, "[%s> %s %d | %s> %s %d] ",
-		*Act2Str(i), *Act2Str(j), bound_ij,
-		*Act2Str(j), *Act2Str(i), bound_ji);
-
-	return bound;
-}
-
-int CRCPSP::BoundIT(int i, int j, int l, TVector<int>& es, TVector<int>& ls, int bound) {
-	int cpm = es.Last();
-	int localBound = 0, boundPair;
-	TVector<int> prec = { i,j,i,l,j,l };
-	TVector<int> suc = { j,i,l,i,l,j };
-
-	TProcura::Debug(COMPLETO, false, "\n%s[%d;%d] ",
-		*Act2Str(i, 0, Parametro(NIVEL_DEBUG) >= COMPLETO ? 3 : 0),
-		es[i], ls[i] + act[i].pt - 1);
-	TProcura::Debug(COMPLETO, false, "%s[%d;%d] ",
-		*Act2Str(j, 0, Parametro(NIVEL_DEBUG) >= COMPLETO ? 3 : 0),
-		es[j], ls[j] + act[j].pt - 1);
-	TProcura::Debug(COMPLETO, false, "%s[%d;%d] ",
-		*Act2Str(l, 0, Parametro(NIVEL_DEBUG) >= COMPLETO ? 3 : 0),
-		es[l], ls[l] + act[l].pt - 1);
-
-
-	for (int k = 0; k < 6; k++) {
-		boundPair = es[prec[k]] + act[prec[k]].pt + (cpm - ls[suc[k]]);
-
-		TProcura::Debug(DETALHE, false, " %s> %s %d |",
-			*Act2Str(prec[k]), *Act2Str(suc[k]), boundPair);
-
-		if (k == 0 || localBound > boundPair)
-			localBound = boundPair;
-		if (localBound <= bound)
-			return localBound;
-	}
-	return localBound;
 }
 
 int CRCPSP::LBIT() {
-	TVector<int> es, ls, resUsage;
-	int bound, cpm;
-	CPM(es, &ls);
-	bound = cpm = es.Last();
-	resUsage.Count(R());
+	return LBItuples();
+}
 
-	TProcura::Debug(DETALHE, false, "\nLBit: ");
+// lower bound that detect any size resource incompatible tuples (2, 3, ... N)
+int CRCPSP::LBItuples() {
+	TVector<int> headPT, tailPT;
+	TVector<int> resUsage;
+	TVector<int> i; // vetor of iterators
+	int bound = ES(act.Last());
+	for (auto& activity : act) {
+		headPT += activity.head + activity.pt;
+		tailPT += activity.tail + activity.pt;
+	}
+	resUsage.Count(R()).Reset(0);
+	TProcura::Debug(DETALHE, false, "\nLBituples (%d): ", bound);
 
-	// process all precedence OK pairs i>j
-	for (int i = 1; i <= N(); i++)
-		for (int j = i + 1; j <= N(); j++)
-			if (!predBits[j].GetBit(i)) {
-				bool resOK = true;
-				for (int k = 0; resOK && k < R(); k++)
-					resOK = ((resUsage[k] = act[i].res[k] + act[j].res[k]) <= capacity[k]);
-				if (!resOK) { // incompatible pair i||j
-					int lowestBound = BoundIP(i, j, es, ls);
-					if (bound < lowestBound) {
-						bound = lowestBound;
-						TProcura::Debug(DETALHE, false, " %s%d ", Icon(EIcon::LB), bound);
-					}
-				}
-				else
-					for (int l = j + 1; l <= N(); l++)
-						if (!predBits[l].GetBit(j) && !predBits[l].GetBit(i)) {
-							bool resOK = true;
-							for (int k = 0; resOK && k < R(); k++)
-								resOK = (resUsage[k] + act[l].res[k] <= capacity[k]);
-							if (!resOK) { // incompatible triplet i||j||l
-								int lowestBound = BoundIT(i, j, l, es, ls, bound);
-								if (bound < lowestBound) {
-									bound = lowestBound;
-									TProcura::Debug(DETALHE, false, " %s%d ", Icon(EIcon::LB), bound);
-								}
-							}
-						}
-			}
+	for (i.Push(1); i.Last() <= N(); i.Last()++) {
+		// first level, impossible a incompatible tuple of 1
+		for (int k = 0; k < R(); k++)
+			resUsage[k] = act[i.Last()].res[k];
+		BoundTuple(i,
+			(act[i.Last()].predBits | act[i.Last()].sucBits).SetBit(i.Last(), true),
+			resUsage, headPT, tailPT, bound);
+	}
 	return bound;
 }
+
+void CRCPSP::BoundTuple(TVector<int>& i, TBits predOK,
+	TVector<int> resUsage, TVector<int>& headPT, TVector<int>& tailPT, int& bound, int bestBound)
+{
+	for (i.Push(i.Last() + 1);
+		i.Last() <= N() && (bestBound < 0 || bestBound > bound);
+		i.Last()++)
+		// check if is parallel with all others
+		if (!predOK.GetBit(i.Last())) {
+			bool OK = true;
+			int bound_ij, bound_ji;
+			int localBest = bestBound;
+			// check bound with all others
+			for (int j = 0; OK && j < i.Count() - 1; j++)
+				if ((bound_ij = headPT[i[j]] + tailPT[i.Last()]) > bound &&
+					(bound_ji = headPT[i.Last()] + tailPT[i[j]]) > bound) {
+					if (localBest < 0 || localBest > bound_ij)
+						localBest = bound_ij;
+					if (localBest > bound_ji)
+						localBest = bound_ji;
+				}
+				else
+					OK = false;
+			// do not process this item if is not OK
+			if (OK) {
+				// verify resources
+				bool resOK = true;
+				TVector<int> backupRes = resUsage;
+				for (int k = 0; resOK && k < R(); k++)
+					resOK = ((resUsage[k] += act[i.Last()].res[k]) <= capacity[k]);
+				if (!resOK) { // incompatible tuplet
+					bound = localBest;
+					TProcura::Debug(DETALHE, false, "\n%s%d #%d: ", Icon(EIcon::LB), bound, i.Count());
+					for (auto& j : i)
+						TProcura::Debug(COMPLETO, false, "%sh%d t%d ", *Act2Str(act[j].id, 0, 1), headPT[j], tailPT[j]);
+				}
+				else { // tuple can be increased
+					BoundTuple(i,
+						(predOK | act[i.Last()].predBits | act[i.Last()].sucBits).SetBit(i.Last(), true),
+						resUsage, headPT, tailPT, bound, localBest);
+				}
+				resUsage = backupRes;
+			}
+		}
+	i.Pop();
+}
+
 
 // return the number of compatible activities to each activity
 TVector<TVector<int>> CRCPSP::CompatibleActivities() {
@@ -1268,7 +2223,7 @@ TVector<TVector<int>> CRCPSP::CompatibleActivities() {
 	for (int i = 1; i <= N(); i++)
 		for (int j = i + 1; j <= N(); j++)
 			// precedence compatible && resource compatible
-			if (!predBits[j].GetBit(i) && !ResourceIncompatible({ i,j })) {
+			if (!act[j].predBits.GetBit(i) && !ResourceIncompatible({ i,j })) {
 				compatible[i] += j;
 				compatible[j] += i;
 			}
@@ -1278,19 +2233,26 @@ TVector<TVector<int>> CRCPSP::CompatibleActivities() {
 
 
 // Node Packing: 
-// select an activityh (most incompatible one), and schedule in serial
+// select an activity (most incompatible one), and schedule in serial
 // remove all compatible activities with the selected activity from the list
 // process until is empty
 int CRCPSP::LBNodePacking(int n) {
 	TVector<int> weight, activities; // process by increasing order of this weight vector, depending on mode n
 	TVector<TVector<int>> compatible; // number of compatible activities (precedences and resources)
 	TVector<int> es, ls, pt;
-	int cpm, bound = 0, currentPT = 0, minHead, minTail;
+	int currentPT = 0, minHead, minTail;
 	compatible = CompatibleActivities();
-	CPM(es, &ls);
+	int cpm, bound = ES(act.Last());
+	es.Count(N(true));
+	ls.Count(N(true));
+	for (int i = 0; i < N(true); i++) {
+		es[i] = ES(act[i]);
+		ls[i] = LS(act[i], bound);
+	}
+
 	minHead = minTail = bound = cpm = es.Last();
 
-	TProcura::Debug(DETALHE, false, "\nLBnp(%d): ", n);
+	TProcura::Debug(DETALHE, false, "\nLBnp(%d,%d): ", n, bound);
 
 	for (int i = 0; i < N(true); i++)
 		switch (n) {
@@ -1309,7 +2271,11 @@ int CRCPSP::LBNodePacking(int n) {
 			// start first by activities with the center of slack in the middle (head*tail)
 			// second criteria is the number of compatible activities (lowest first)
 			// third criteria processing time, longer first
-			weight += -100 * es[i] * (cpm - ls[i] - act[i].pt) + compatible[i].Count() * 100 - act[i].pt;
+			weight += -100 * act[i].head * act[i].tail + compatible[i].Count() * 100 - act[i].pt;
+			break;
+		case 3:
+			// more restricted activities first (head+pt+tail), then number of compatible (lowest first)
+			weight += -1000 * (act[i].head + act[i].pt + act[i].tail) + compatible[i].Count() * 100 - act[i].pt;
 			break;
 		default:
 			weight += TRand::rand() % 10000; // random order
@@ -1318,8 +2284,8 @@ int CRCPSP::LBNodePacking(int n) {
 	activities.Invert(); // process the top first
 
 	// local pt (to reduce pt instead of removing an activity)
-	for (int i = 0; i < N(true); i++)
-		pt += act[i].pt;
+	for (auto& activity : act)
+		pt += activity.pt;
 
 	while (!activities.Empty()) {
 		int i = activities.Pop();
@@ -1329,16 +2295,19 @@ int CRCPSP::LBNodePacking(int n) {
 
 		currentPT += pt[i]; // activity done in serial
 
-		TProcura::Debug(DETALHE, false, "\n%s: (%d) ",
-			*Act2Str(i, 0, (Parametro(NIVEL_DEBUG) >= COMPLETO ? 3 : 1)), currentPT);
+		TProcura::Debug(DETALHE, false, "\n%s: %d%s ",
+			*Act2Str(act[i].id, 0, (Parametro(NIVEL_DEBUG) >= COMPLETO ? 3 : 1)),
+			currentPT, Icon(EIcon::TEMPO));
 
 		for (auto& j : compatible[i]) {
 			int index = activities.Find(j);
 			if (index >= 0) {
 				if (pt[j] > pt[i])
 					pt[j] -= pt[i];
-				else
+				else {
 					activities[index] = -1;
+					pt[j] = 0;
+				}
 				TProcura::Debug(COMPLETO, false, "%s%s", *Act2Str(j), Icon(EIcon::NSEL));
 			}
 		}
@@ -1358,10 +2327,45 @@ int CRCPSP::LBNodePacking(int n) {
 			bound = minHead + currentPT + minTail;
 			TProcura::Debug(DETALHE, false, "%s%d ", Icon(EIcon::LB), bound);
 		}
+		// test CPM and resource capacity bound with the rest of activities and current PT
+		pt[i] = 0;
+		int restLB = LBcpmCapacity(pt);
+		if (restLB + currentPT > bound) {
+			bound = restLB + currentPT;
+			TProcura::Debug(DETALHE, false, "%s%d (%d) ", Icon(EIcon::LB), bound, restLB);
+		}
 	}
 
 	return bound;
 }
+
+int CRCPSP::LBcpmCapacity(TVector<int>& pt) {
+	TVector<int> es;
+	int bound = 0;
+
+	// calculate the CPM with the pt
+	es.Count(N(true)).Reset(0);
+	for (int i = 0; i < N(true); i++) {
+		es[i] = 0;
+		for (auto& pred : act[i].pred) {
+			int j = Index(pred);
+			if (es[i] < es[j] + pt[j])
+				es[i] = es[j] + pt[j];
+		}
+	}
+	bound = es.Last();
+	// calculate the resource capacity bound with the pt
+	for (int k = 0; k < R(); k++) {
+		int workContent = 0;
+		for (int i = 1; i <= N(); i++)
+			workContent += act[i].res[k] * pt[i];
+		int wcBound = (workContent > 0 && capacity[k] > 0 ? (workContent - 1) / capacity[k] + 1 : 0);
+		if (bound < wcBound)
+			bound = wcBound;
+	}
+	return bound;
+}
+
 
 // parallel machine bound
 // mode:
@@ -1371,16 +2375,16 @@ int CRCPSP::LBNodePacking(int n) {
 // 3 - use work content instead of machine usage
 // - use es and the LS of the instance
 int CRCPSP::LBParallelMachine(int m) {
-	TVector<int> es, ls, pt, heads, tails, tHeads, tTails;
-	//TVector<TVector<TVector<int>>> actMatrix;
-	//TVector<TVector<int>> sumMatrix;
-	int cpm, bound;
-	CPM(es, &ls);
-	cpm = bound = es.Last();
-	heads = es;
-	tails = ls;
-	for (int i = 0; i < N(true); i++)
-		tails[i] = cpm - ls[i] - act[i].pt;
+	TVector<int> pt, heads, tails, tHeads, tTails;
+	TVector<TVector<TVector<int>>> actMatrix;
+	TVector<TVector<int>> sumMatrix;
+	int bound = ES(act.Last());
+	heads.Count(N(true));
+	tails.Count(N(true));
+	for (int i = 0; i < N(true); i++) {
+		heads[i] = act[i].head;
+		tails[i] = act[i].tail;
+	}
 
 	TProcura::Debug(DETALHE, false, "\nLBpm(%d): ", m);
 
@@ -1388,7 +2392,6 @@ int CRCPSP::LBParallelMachine(int m) {
 	(tHeads = heads).BeASet();
 	(tTails = tails).BeASet();
 
-	/*
 	// setup actMatrix[idxHead][idxTail][idAct] --- activities with idxHead and idxTail
 	actMatrix.Count(tHeads.Count());
 	sumMatrix.Count(tHeads.Count());
@@ -1399,7 +2402,7 @@ int CRCPSP::LBParallelMachine(int m) {
 
 	for (int i = 1; i <= N(); i++)
 		actMatrix[tHeads.Find(heads[i], true)][tTails.Find(tails[i], true)] += i;
-	*/
+
 
 	// process each resource
 	for (int k = 0; k < R(); k++) {
@@ -1413,25 +2416,31 @@ int CRCPSP::LBParallelMachine(int m) {
 
 			TProcura::Debug(COMPLETO, false, " %d/%d ", u_min, machines);
 
-			for (auto& tHead : tHeads)
-				for (auto& tTail : tTails) {
-					// for all activities with head>=tHead and tail>=tTail, sum pt 
+			for (int head = tHeads.Count() - 1; head >= 0; head--)
+				for (int tail = tTails.Count() - 1; tail >= 0; tail--) {
 					int sum = 0;
-					for (int i = 1; i <= N(); i++)
-						if (heads[i] >= tHead && tails[i] >= tTail &&
-							act[i].pt > 0 && act[i].res[k] >= u_min)
-						{
-							// considering work content, assuming a machine require u_min resources
+					for (auto& i : actMatrix[head][tail])
+						if (act[i].pt > 0 && act[i].res[k] >= u_min)
 							sum += (act[i].res[k] / u_min) * act[i].pt;
-						}
-					if (sum > 0 && bound < (sum = (sum - 1) / machines + 1 + tHead + tTail)) {
+					// acumulate with the other activities, with greater head/tail
+					if (head < tHeads.Count() - 2)
+						sum += sumMatrix[head + 1][tail];
+					if (tail < tTails.Count() - 2)
+						sum += sumMatrix[head][tail + 1];
+					if (head < tHeads.Count() - 2 && tail < tTails.Count() - 2)
+						sum -= sumMatrix[head + 1][tail + 1];
+
+					sumMatrix[head][tail] = sum;
+
+					if (sum > 0 && bound < (sum = (sum - 1) / machines + 1 + tHeads[head] + tTails[tail])) {
 						bound = sum;
-						TProcura::Debug(DETALHE, false, " head:%d tail:%d %s%d ", tHead, tTail, Icon(EIcon::LB), bound);
+						TProcura::Debug(DETALHE, false, " head:%d tail:%d %s%d ",
+							tHeads[head], tTails[tail], Icon(EIcon::LB), bound);
 					}
 					else if (sum > 0)
 						TProcura::Debug(COMPLETO, false, "%d ", sum);
-
 				}
+
 			u_min++;
 
 			if (m == 1 || u_min >= capacity[k])
@@ -1456,27 +2465,131 @@ int CRCPSP::LBParallelMachine(int m) {
 	return bound;
 }
 
+int CRCPSP::LBPRtuples() {
+	TVector<int> headPT, tailPT;
+	TVector<int> resUsage;
+	TVector<int> i; // vetor of iterators
+	int bound = ES(act.Last());
+	int tw = 0;
+	for (auto& activity : act) {
+		headPT += activity.head + activity.pt;
+		tailPT += activity.tail + activity.pt;
+	}
+	resUsage.Count(R()).Reset(0);
+	TProcura::Debug(DETALHE, false, "\nLBPRtuples (%d): ", bound);
+
+	for (i.Push(1); i.Last() <= N(); i.Last()++) {
+		// first level, impossible a incompatible tuple of 1
+		for (int k = 0; k < R(); k++)
+			resUsage[k] = act[i.Last()].res[k];
+		if (BoundPRTuple(i,
+			(act[i.Last()].predBits |
+				act[i.Last()].sucBits).SetBit(i.Last(), true),
+			resUsage, headPT, tailPT, bound, tw))
+		{
+			// restart
+			i.Count(1).First() = 0;
+			if (tw == -1) {
+				tailPT = headPT = {};
+				for (auto& activity : act) {
+					headPT += activity.head + activity.pt;
+					tailPT += activity.tail + activity.pt;
+				}
+				tw = 0;
+			}
+		}
+	}
+	return bound;
+}
+
+bool CRCPSP::BoundPRTuple(TVector<int>& i, TBits predOK,
+	TVector<int> resUsage, TVector<int>& headPT, TVector<int>& tailPT, int& bound, int& tw,
+	int weakPairs, int bestBound)
+{
+	for (i.Push(i.Last() + 1);
+		i.Last() <= N() && (bestBound < 0 || bestBound > bound);
+		i.Last()++)
+		// check if is parallel with all others
+		if (predOK.GetBit(i.Last())) {
+			bool OK = true;
+			int weakBounds = weakPairs;
+			int bound_ij, bound_ji, localBound = bestBound;
+			// check bound with all others
+			for (int j = 0; OK && j < i.Count() - 1; j++) {
+				bound_ij = headPT[i[j]] + tailPT[i.Last()];
+				bound_ji = headPT[i.Last()] + tailPT[i[j]];
+				if (bound_ij <= bound)
+					weakBounds++;
+				if (bound_ji <= bound)
+					weakBounds++;
+				if (localBound < 0 || localBound > bound_ij)
+					localBound = bound_ij;
+				if (localBound > bound_ji)
+					localBound = bound_ji;
+				// if two or more pairs are less or equal to current bound, then is pointless the tuple
+				OK = (weakBounds <= 1);
+			}
+			// do not process this item if is not OK
+			if (OK) {
+				// verify resources
+				bool resOK = true;
+				TVector<int> backupRes = resUsage;
+				for (int k = 0; resOK && k < R(); k++)
+					resOK = ((resUsage[k] += act[i.Last()].res[k]) <= capacity[k]);
+				if (!resOK) { // incompatible tuplet
+					if (weakBounds == 0) {
+						if (tw == 0)
+							bound = bestBound;
+						else
+							bound++;
+						tw = -1; // recalculate all
+						return true; // restart
+					}
+					else {
+						// add the only relation compatible with current bound
+						// increase headPT and tailPT and update time windows of other activities
+
+						// NOT DONE:
+						// - identify the weak pair, to add time windows
+						// - allow bestBound to be lower than bound if exist one weak pair
+						// - this may not compensate
+
+						tw = 1;
+						return true; // restart with tbe new head/tails
+					}
+				}
+				else // tuple can be increased
+					if (BoundPRTuple(i,
+						(predOK | act[i.Last()].predBits |
+							act[i.Last()].sucBits).SetBit(i.Last(), true),
+						resUsage, headPT, tailPT, bound, tw, weakBounds))
+						return true;
+				resUsage = backupRes;
+			}
+		}
+	i.Pop();
+	return false;
+}
+
+
 int CRCPSP::LBPR() {
 	TVector<int> es, ls, headPT, tailPT;
-	int bound, cpm, tw = 0;
-	CPM(es, &ls);
-	bound = cpm = es.Last();
-
-	TProcura::Debug(DETALHE, false, "\nLBpr: ");
-
-	// headPT: head+PT, tailPT; tail+PT
-	headPT = es;
-	tailPT = ls;
+	int tw = 0;
+	int bound = ES(act.Last());
+	headPT.Count(N(true));
+	tailPT.Count(N(true));
 	for (int i = 0; i < N(true); i++) {
-		headPT[i] += act[i].pt;
-		tailPT[i] = cpm - tailPT[i];
+		headPT[i] = act[i].head + act[i].pt;
+		tailPT[i] = act[i].tail + act[i].pt;
 	}
+
+	TProcura::Debug(DETALHE, false, "\nLBpr (%d): ", bound);
 
 	// process all precedence OK pairs i>j
 	for (int i = 1; i <= N(); i++) {
-		TProcura::Debug(COMPLETO, false, "\n%s ", *Act2Str(i));
+		TProcura::Debug(COMPLETO, false, "\n%s ", *Act2Str(act[i].id));
 		for (int j = i + 1; j <= N(); j++)
-			if (!predBits[j].GetBit(i)) {
+			if (!act[j].predBits.GetBit(i)) {
 				bool resOK = true;
 				for (int k = 0; resOK && k < R(); k++)
 					resOK = (act[i].res[k] + act[j].res[k] <= capacity[k]);
@@ -1484,13 +2597,14 @@ int CRCPSP::LBPR() {
 					int bound_ij = headPT[i] + tailPT[j];
 					int bound_ji = headPT[j] + tailPT[i];
 					int pairBound = (bound_ij < bound_ji ? bound_ij : bound_ji);
-					TProcura::Debug(COMPLETO, false, "%s %d,%d ", *Act2Str(j), bound_ij, bound_ji);
+					TProcura::Debug(COMPLETO, false, "%s %d,%d ", *Act2Str(act[j].id), bound_ij, bound_ji);
 					if (bound < pairBound) {
 						if (tw == 0)
 							bound = pairBound;
 						else
 							bound++;
-						TProcura::Debug(DETALHE, false, " %s%s%s%d ", *Act2Str(i), *Act2Str(j), Icon(EIcon::LB), bound);
+						TProcura::Debug(DETALHE, false, " %s%s%s%d ",
+							*Act2Str(act[i].id), *Act2Str(act[j].id), Icon(EIcon::LB), bound);
 						tw = -1; // recalculate all
 						i = 0; // restart
 						break;
@@ -1508,7 +2622,8 @@ int CRCPSP::LBPR() {
 						}
 						if (updated) {
 							PropagateTW(headPT, tailPT, j, i);
-							TProcura::Debug(COMPLETO, false, " (%s>%s) ", *Act2Str(j), *Act2Str(i));
+							TProcura::Debug(COMPLETO, false, " (%s>%s) ",
+								*Act2Str(act[j].id), *Act2Str(act[i].id));
 							tw = 1;
 							i = 0;
 							break;
@@ -1527,7 +2642,8 @@ int CRCPSP::LBPR() {
 						}
 						if (updated) {
 							PropagateTW(headPT, tailPT, i, j);
-							TProcura::Debug(COMPLETO, false, " (%s>%s) ", *Act2Str(i), *Act2Str(j));
+							TProcura::Debug(COMPLETO, false, " (%s>%s) ",
+								*Act2Str(act[i].id), *Act2Str(act[j].id));
 							tw = 1;
 							i = 0;
 							break;
@@ -1539,11 +2655,9 @@ int CRCPSP::LBPR() {
 			// bound changed, previous time windows invalid
 			TProcura::Debug(DETALHE, false, " restart %s%d. ", Icon(EIcon::LB), bound);
 			tw = 0;
-			headPT = es;
-			tailPT = ls;
 			for (int i = 0; i < N(true); i++) {
-				headPT[i] += act[i].pt;
-				tailPT[i] = cpm - tailPT[i];
+				headPT[i] = act[i].head + act[i].pt;
+				tailPT[i] = act[i].tail + act[i].pt;
 			}
 		}
 	}
@@ -1557,18 +2671,18 @@ void CRCPSP::PropagateTW(TVector<int>& headPT, TVector<int>& tailPT, int i, int 
 	while (!updateB.Empty()) {
 		int i = updateB.Pop();
 		for (auto& pred : act[i].pred)
-			if (tailPT[pred] < tailPT[i] + act[pred].pt) {
-				tailPT[pred] = tailPT[i] + act[pred].pt;
-				updateB += pred;
+			if (tailPT[Index(pred)] < tailPT[i] + act[Index(pred)].pt) {
+				tailPT[Index(pred)] = tailPT[i] + act[Index(pred)].pt;
+				updateB += Index(pred);
 			}
 	}
 	// headPT[j] updated backward
 	while (!updateF.Empty()) {
 		int i = updateF.Pop();
 		for (auto& suc : act[i].suc)
-			if (headPT[suc] < headPT[i] + act[suc].pt) {
-				headPT[suc] = headPT[i] + act[suc].pt;
-				updateF += suc;
+			if (headPT[Index(suc, N(true) - 1)] < headPT[i] + act[Index(suc, N(true) - 1)].pt) {
+				headPT[Index(suc, N(true) - 1)] = headPT[i] + act[Index(suc, N(true) - 1)].pt;
+				updateF += Index(suc, N(true) - 1);
 			}
 	}
 }
@@ -1580,42 +2694,44 @@ bool CRCPSP::PropagateEFLS(TVector<int>& ef, TVector<int>& ls, int i, int bound)
 	while (!updateB.Empty()) {
 		int i = updateB.Pop();
 		for (auto& pred : act[i].pred)
-			if (ls[pred] > ls[i] - act[pred].pt) {
-				ls[pred] = ls[i] - act[pred].pt;
-				if (ls[pred] < 0)
+			if (ls[Index(pred)] > ls[i] - act[Index(pred)].pt) {
+				ls[Index(pred)] = ls[i] - act[Index(pred)].pt;
+				if (ls[Index(pred)] < 0)
 					return true;
-				updateB += pred;
+				updateB += Index(pred);
 			}
 	}
 	// ef[i] updated forward
 	while (!updateF.Empty()) {
 		int i = updateF.Pop();
 		for (auto& suc : act[i].suc)
-			if (ef[suc] < ef[i] + act[suc].pt) {
-				ef[suc] = ef[i] + act[suc].pt;
-				if (ef[suc] > bound)
+			if (ef[Index(suc, N(true) - 1)] < ef[i] + act[Index(suc, N(true) - 1)].pt) {
+				ef[Index(suc, N(true) - 1)] = ef[i] + act[Index(suc, N(true) - 1)].pt;
+				if (ef[Index(suc, N(true) - 1)] > bound)
 					return true;
-				updateF += suc;
+				updateF += Index(suc, N(true) - 1);
 			}
 	}
 	return false;
 }
 
 int CRCPSP::LBCT() {
-	TVector<int> es, ls, ef;
+	TVector<int> ls, ef;
 	TVector<TVector<int>> resUsage;
-	int bound, cpm, tw = 0;
+	int bound, tw = 0;
 	int realES, realLS, alternatives, ok;
-	CPM(es, &ls);
-	bound = cpm = es.Last();
+	bound = ES(act.Last());
 	resUsage.Count(R());
-	ef = es;
-	for (int i = 0; i < N(true); i++)
-		ef[i] += act[i].pt;
+	ls.Count(N(true));
+	ef.Count(N(true));
+	for (int i = 0; i < N(true); i++) {
+		ls[i] = LS(act[i], bound);
+		ef[i] = EF(act[i]);
+	}
 
 	// core times from ls to ef if intersect
 
-	TProcura::Debug(DETALHE, false, "\nLBct: ");
+	TProcura::Debug(DETALHE, false, "\nLBct (%d): ", bound);
 
 	do {
 		tw = 0;
@@ -1629,7 +2745,8 @@ int CRCPSP::LBCT() {
 				TVector<int> res;
 				if (t < 0) {
 					bound++;
-					TProcura::Debug(DETALHE, false, "\n %s%s%d ", *Act2Str(i), Icon(EIcon::LB), bound);
+					TProcura::Debug(DETALHE, false, "\n %s%s%d %d%s",
+						*Act2Str(act[i].id), Icon(EIcon::LB), bound, t, Icon(EIcon::TEMPO));
 					tw = -1;
 					break;
 				}
@@ -1637,7 +2754,8 @@ int CRCPSP::LBCT() {
 					res += (resUsage[k][t] += act[i].res[k]);
 				if (ResourcesViolated(res)) {
 					bound++;
-					TProcura::Debug(DETALHE, false, "\n %s%s%d ", *Act2Str(i), Icon(EIcon::LB), bound);
+					TProcura::Debug(DETALHE, false, "\n %s%s%d %d%s", *Act2Str(act[i].id), Icon(EIcon::LB), bound,
+						t, Icon(EIcon::TEMPO));
 					tw = -1;
 					break;
 				}
@@ -1645,9 +2763,15 @@ int CRCPSP::LBCT() {
 
 		if (Parametro(NIVEL_DEBUG) >= COMPLETO) {
 			TVector<int> res, resAnt;
-			for (int i = 1; i <= N(); i++)
-				TProcura::Debug(COMPLETO, false, "\n%s [%d;%d]", *Act2Str(i, 0, 3), ls[i], ef[i] - 1);
-			TProcura::Debug(COMPLETO, false, tw == 0 ? "\n Core times: " : " Core times: ");
+			for (int i = 1; tw >= 0 && i <= N(); i++) {
+				TProcura::Debug(COMPLETO, false, "\n%s ", *Act2Str(act[i].id, 0, 3));
+				TProcura::Debug(COMPLETO, false,
+					(ls[i] >= ef[i] ?
+						COR_LEVE "[%d;%d]" COR_RESET : "[%d;%d]"),
+					ls[i], ef[i]);
+			}
+			TProcura::Debug(COMPLETO, false, tw == 0 ? "\n Core times (%d): " : " Core times (%d): ",
+				bound);
 			for (int t = 0; t < bound + tw; t++) {
 				res = {};
 				for (int k = 0; k < R(); k++)
@@ -1709,7 +2833,9 @@ int CRCPSP::LBCT() {
 			}
 			if (realLS < 0) { // no valid spot found
 				bound++;
-				TProcura::Debug(DETALHE, false, " %s%s%d ", *Act2Str(i), Icon(EIcon::LB), bound);
+				TProcura::Debug(DETALHE, false, " %s%s%d " COR_INATIVO "[%d %d;%d %d]" COR_RESET,
+					*Act2Str(act[i].id, 0, 3),
+					Icon(EIcon::LB), bound, ef[i] - act[i].pt, ls[i], ef[i], ls[i] + act[i].pt);
 				tw = -1;
 				break;
 			}
@@ -1722,15 +2848,18 @@ int CRCPSP::LBCT() {
 					break;
 				}
 				tw = 1;
+				TProcura::Debug(DETALHE, false, "\n %s " COR_ATIVO "[%d %d;%d %d]" COR_RESET,
+					*Act2Str(act[i].id, 0, 3),
+					ef[i] - act[i].pt, ls[i], ef[i], ls[i] + act[i].pt);
 			}
 		}
 
 		// reset time windows for the new bound
 		if (tw < 0) {
-			CPM(es, &ls, bound);
-			ef = es;
-			for (int i = 0; i < N(true); i++)
-				ef[i] += act[i].pt;
+			for (int i = 0; i < N(true); i++) {
+				ls[i] = LS(act[i], bound);
+				ef[i] = EF(act[i]);
+			}
 			continue;
 		}
 
@@ -1740,13 +2869,20 @@ int CRCPSP::LBCT() {
 }
 
 int CRCPSP::LBTP() {
-	TVector<int> es, ls, ef, ts, tt, workContent;
-	int bound, cpm, z;
-	CPM(es, &ls);
-	bound = cpm = es.Last();
-	ef = es;
-	for (int i = 0; i < N(true); i++)
-		ef[i] += act[i].pt;
+	TVector<int> ls, ef, ts, tt, workContent;
+	int bound, z;
+	bound = ES(act.Last());
+	ls.Count(N(true));
+	ef.Count(N(true));
+	// this bound is based on LBcapacity
+	if ((z = LBC()) > bound)
+		bound = z;
+	for (int i = 0; i < N(true); i++) {
+		ls[i] = LS(act[i], bound);
+		ef[i] = EF(act[i]);
+	}
+
+	TProcura::Debug(DETALHE, false, "\nLBtp (%d): ", bound);
 
 	(ts = ef).BeASet();
 	(tt = ls).BeASet();
@@ -1778,11 +2914,14 @@ int CRCPSP::LBTP() {
 							TProcura::Debug(DETALHE, false, " [%d;%d]%s%s%d ",
 								t, q, Icon(EIcon::TEMPO), Icon(EIcon::LB), bound);
 							// update tt for the new bound
-							CPM(es, &ls, bound);
+							for (int i = 0; i < N(true); i++)
+								ls[i] = LS(act[i], bound);
 							(tt = ls).BeASet();
 							z = 1;
 							break;
-						}
+						} //else
+						//	TProcura::Debug(DETALHE, false, "\n [%d;%d]%s%s%d %d - %d ",
+						//		t, q, Icon(EIcon::TEMPO), Icon(EIcon::LB), bound, k, workContent[k]);
 					if (z == 1)
 						break;
 				}
@@ -1794,13 +2933,27 @@ int CRCPSP::LBTP() {
 	return bound;
 }
 
-int CRCPSP::LBAll() {
-	int best = LBCPM();
-	for (int i = IND_LB_CPM + 1; i < IND_LB_ALL; i++) {
-		int bound = Indicador(i);
-		if (bound > best)
-			best = bound;
-	}
+int CRCPSP::LBAll(int mode) {
+	int best, bound;
+	TVector<int> baseLBs = { 2,3,4,5,6,7,8,9,10,11 };
+	TVector<int> nModes = { 1,1,1,1,1,4,3,1,1 ,1 };
+	ENivelDebug backupDebug = (ENivelDebug)Parametro(NIVEL_DEBUG);
+	Parametro(NIVEL_DEBUG) = NADA;
+	best = LBCPM();
+
+	for (int i = 0; i < baseLBs.Count() && best < bestUB; i++)
+		for (int m = 0; m < nModes[i] && best < bestUB; m++)
+			if ((bound = BaseLB(baseLBs[i], m)) > best) {
+				if (backupDebug >= COMPLETO) {
+					// repeat the LB to show debug data
+					Parametro(NIVEL_DEBUG) = backupDebug;
+					BaseLB(baseLBs[i], m);
+					Parametro(NIVEL_DEBUG) = NADA;
+				}
+				best = bound;
+			}
+
+	Parametro(NIVEL_DEBUG) = backupDebug;
 	return best;
 }
 
@@ -1859,43 +3012,53 @@ void CRCPSP::PriorityRule(int rule, bool serial) {
 		case 6: // GRPW
 			value[i] = -act[i].pt;
 			for (auto& suc : act[i].suc)
-				value[i] -= act[suc].pt;
+				value[i] -= act[Index(suc, N(true) - 1)].pt;
 			break;
 		case 7: // EST
+			value[i] = ES(act[i]);
+			/*
 			value[i] = 0;
 			for (auto& pred : act[i].pred)
-				if (value[pred] + act[pred].pt > value[i])
-					value[i] = value[pred] + act[pred].pt;
+				if (value[Index(pred)] + act[Index(pred)].pt > value[i])
+					value[i] = value[Index(pred)] + act[Index(pred)].pt;*/
 			break;
 		case 8: // EFT
+			value[i] = EF(act[i]);
+			/*
 			value[i] = act[i].pt;
 			for (auto& pred : act[i].pred)
-				if (value[pred] + act[i].pt > value[i])
-					value[i] = value[pred] + act[i].pt;
+				if (value[Index(pred)] + act[i].pt > value[i])
+					value[i] = value[Index(pred)] + act[i].pt;*/
 		case 9: // LST
+			value[i] = LS(act[i]);
+			/*
 			invI = N(true) - i - 1;
 			value[invI] = -act[invI].pt; // 0 is the finish of project
 			for (auto& suc : act[invI].suc)
-				if (value[suc] - act[invI].pt < value[invI])
-					value[invI] = value[suc] - act[invI].pt;
+				if (value[Index(suc, N(true) - 1)] - act[invI].pt < value[invI])
+					value[invI] = value[Index(suc, N(true) - 1)] - act[invI].pt;*/
 			break;
 		case 10: // LFT
+			value[i] = LF(act[i]);
+			/*
 			invI = N(true) - i - 1;
 			value[invI] = 0;
 			for (auto& suc : act[invI].suc)
-				if (value[suc] - act[suc].pt < value[invI])
-					value[invI] = value[suc] - act[suc].pt;
+				if (value[Index(suc, N(true) - 1)] - act[Index(suc, N(true) - 1)].pt < value[invI])
+					value[invI] = value[Index(suc, N(true) - 1)] - act[Index(suc, N(true) - 1)].pt;*/
 			break;
 		case 11: // MSLK
+			value[i] = LS(act[i]) - ES(act[i]);
+			/*
 			value[i] = 0; // EST
 			for (auto& pred : act[i].pred)
-				if (value[pred] + act[pred].pt > value[i])
-					value[i] = value[pred] + act[pred].pt;
+				if (value[Index(pred)] + act[Index(pred)].pt > value[i])
+					value[i] = value[Index(pred)] + act[Index(pred)].pt;
 			invI = N(true) - i - 1;
 			valueAux[invI] = 0; // LST
 			for (auto& suc : act[invI].suc)
-				if (valueAux[suc] - act[suc].pt < valueAux[invI])
-					valueAux[invI] = valueAux[suc] - act[suc].pt;
+				if (valueAux[Index(suc, N(true) - 1)] - act[Index(suc, N(true) - 1)].pt < valueAux[invI])
+					valueAux[invI] = valueAux[Index(suc, N(true) - 1)] - act[Index(suc, N(true) - 1)].pt;*/
 			break;
 		case 12: // GRWC
 			value[i] = 0;
@@ -1908,7 +3071,7 @@ void CRCPSP::PriorityRule(int rule, bool serial) {
 				value[i] -= act[i].res[k] * act[i].pt;
 			for (auto& suc : act[i].suc)
 				for (int k = 0; k < R(); k++)
-					value[i] -= act[suc].res[k] * act[suc].pt;
+					value[i] -= act[Index(suc, N(true) - 1)].res[k] * act[Index(suc, N(true) - 1)].pt;
 			break;
 
 		default: // ID
@@ -1930,18 +3093,233 @@ void CRCPSP::PriorityRule(int rule, bool serial) {
 		Parallel(ids);
 }
 
-void CRCPSP::BestPR() {
-	int bestRule = 0;
-	int bestValue = -1;
-	int bestMode = 0;
-	for (int rule = 0; rule <= 13; rule++)
-		for (int mode = 0; mode < 2; mode++) {
-			PriorityRule(rule, mode == 0);
-			if (bestValue < 0 || st.Last() < bestValue) {
-				bestValue = st.Last();
-				bestRule = rule;
-				bestMode = mode;
-			}
+
+
+// explorar manualmente os dados:
+// - mostrar instância e solução
+// - permitir editar instância e solução
+void CRCPSP::Explorar() {
+	int option = 0;
+	do {
+		Debug(true);
+		if (!insertedPred.Empty()) {
+			printf("\nExtra: ");
+			for (auto& extra : insertedPred)
+				printf("(%d,%d) ", extra.pred, extra.suc);
 		}
-	PriorityRule(bestRule, bestMode == 0);
+		if (VerificarSolucao())
+			MostrarSolucao();
+		TVector<TString> action = NovoTexto("\nAction: ").tok(" \t\r\n,();:");
+		option = action.Count();
+		if (action.First() == TString("s")) { // change  solution start times
+			int j = atoi(action[1]);
+			for (int i = 2; j + i - 2 < N(true) && i < action.Count(); i++)
+				st[j + i - 2] = atoi(action[i]);
+		}
+		else if (action.First() == TString("d")) { // change  activity duration
+			int j = atoi(action[1]);
+			for (int i = 2; j + i - 2 < N(true) && i < action.Count(); i++)
+				act[j + i - 2].pt = atoi(action[i]);
+		}
+		else if (action.First() == TString("r")) { // change resource usage
+			int j = atoi(action[1]);
+			for (int i = 1; i <= R() && i + 1 < action.Count(); i++)
+				act[j].res[i - 1] = atoi(action[i + 1]);
+		}
+		else if (action.First() == TString("a")) { // change resource availability
+			for (int i = 1; i <= R() && i < action.Count(); i++)
+				capacity[i - 1] = atoi(action[i]);
+		}
+		else if (action.First() == TString("A")) { // change precedence relations
+			for (int i = 1; i + 1 < action.Count(); i += 2)
+				ChangePred(atoi(action[i]), atoi(action[i + 1]));
+			InitialSetup();
+		}
+		else if (action.First() == TString("Istep")) { // one step of inverse method (testing)
+			TVector<TPredecessor> arcs;
+			int bound = atoi(action[1]); // reference for this method
+			// all alternatives are provided 
+			// check for each one, the two instances (UB and LB)
+			// make one choice with a rule
+			for (int i = 2; i + 1 < action.Count(); i += 2)
+				arcs += {atoi(action[i]), atoi(action[i + 1])};
+
+			for (auto& arc : arcs) {
+				TVector<int> resUse;
+				bool resOK = true, arcOK = false;
+				printf("\n%s %s: ", *Act2Str(arc.pred, 0, 1), *Act2Str(arc.suc, 0, 1));
+				ChangePred(arc.pred, arc.suc);
+				InitialSetup();
+				printf("\t%s%d %s%d ", Icon(EIcon::LB), bestLB, Icon(EIcon::UB), bestUB);
+				ChangePred(arc.pred, arc.suc);
+				// if are incompatible pairs, use base LB in the inverse relation
+				for (int k = 0; resOK && k < R(); k++)
+					resOK = ((resUse[k] = act[Index(arc.pred)].res[k] + act[Index(arc.suc, N(true) - 1)].res[k]) <= capacity[k]);
+				if (!resOK) {
+					ChangePred(arc.suc, arc.pred);
+					InitialSetup();
+					printf("\tIP[%s%d %s%d]", Icon(EIcon::LB), bestLB, Icon(EIcon::UB), bestUB);
+					ChangePred(arc.suc, arc.pred);
+					arcOK = (bestLB >= bound);
+				}
+				else {
+					printf("\tIset[");
+					// otherwise: 
+					// - run the incompatible sets, starting with these activities!
+					//   - verify using only the incompatible set LB, since is the faster one
+					InitialSetup();
+					// check if inverted bound is ok
+					int iPrec = Index(arc.pred), iSuc = Index(arc.suc, N(true) - 1), localBound;
+					if ((localBound = act[iSuc].head + act[iSuc].pt + act[iPrec].pt + act[iPrec].tail) < bound) {
+						printf("%s %s %s%d.", *Act2Str(arc.suc), *Act2Str(arc.pred), Icon(EIcon::LB), localBound);
+						arcOK = false;
+					}
+					else {
+						TVector<int> i, headPT, tailPT;
+						int auxBound = bound - 1;
+						// setup data for calling BoundTuple() with these two activities, and needed bound
+						(i += Index(arc.suc, N(true) - 1)) += Index(arc.pred);
+						headPT.Count(N(true)).Reset(0);
+						tailPT.Count(N(true)).Reset(0);
+						for (auto& activity : act) {
+							headPT[Index(activity.id)] += activity.head + activity.pt;
+							tailPT[Index(activity.id)] += activity.tail + activity.pt;
+						}
+
+						BoundTuple(i,
+							(act[i[0]].predBits | act[i[1]].predBits |
+								act[i[0]].sucBits | act[i[1]].sucBits)
+							.SetBit(i[0], true).SetBit(i[1], true),
+							resUse, headPT, tailPT, auxBound);
+						arcOK = (auxBound >= bound);
+					}
+
+					// collect data
+					printf("]");
+				}
+				// give result on using this arc 
+				printf(" %s", Icon(arcOK ? EIcon::SOL : EIcon::IMP));
+			}
+			InitialSetup();
+		}
+		else if (action.First() == TString("SAT")) { // run SAT with a fixed horizon
+			Parametro(HORIZON) = atoi(action[1]) - bestLB;
+			ExecutaAlgoritmo();
+			if (indicators[IND_RESULTADO] == 2) {
+				printf("Horizon %d: %s", atoi(action[1]), Icon(EIcon::IMP));
+				bestLB = atoi(action[1]) + 1;
+			}
+			else if (indicators[IND_RESULTADO] == 1)
+				printf("Solution found: %d %s", atoi(action[1]), Icon(EIcon::SUCESSO));
+			else
+				printf("Time over: %s", Icon(EIcon::INSUC));
+		}
+		else if (action.First() == TString("Asol")) { // fix A to the current solution 
+			// not work since cannot use pred > suc
+			for (int pred = 1; pred <= N(); pred++)
+				for (int suc = 1; suc <= N(); suc++)
+					if (pred != suc && st[pred] + act[pred].pt == st[suc] && !act[pred].sucBits.GetBit(suc))
+						ChangePred(act[pred].id, act[suc].id);
+			InitialSetup();
+		}
+		else if (action.First() == TString("init")) { // initial setup, recalculate PRs and LBs
+			InitialSetup();
+		}
+		else
+			printf("Available actions:\n"
+				"s j s(j) [s(j+1) [s(j+2) ...]]\n"
+				"d j d(j) [d(j+1) [d(j+2) ...]]\n"
+				"r j r(j,1) [r(j,2) [ ... r(j,R)]]]\n"
+				"a a(1) [a(2) [ ... a(R)]]]\n"
+				"A i j [k w [ ... ]]\n"
+				"Istep bound i j [k w [ ... ]]\n"
+				"SAT horizon\n"
+				"Asol\n"
+				"init\n"
+			);
+	} while (option != 0);
 }
+
+// add/remove extra precedence relations (need to call InitialSetup() after all changes
+void CRCPSP::ChangePred(int pred, int suc) {
+	// use index
+	pred = Index(pred);
+	suc = Index(suc, N(true) - 1);
+	if (pred > 0 && suc >= 0) {
+		if (act[suc].predBits.GetBit(pred)) {
+			for (int j = 0; j < insertedPred.Count(); j++)
+				if (insertedPred[j].pred == act[pred].id &&
+					insertedPred[j].suc == act[suc].id) {
+					insertedPred.Delete(j);
+					break;
+				}
+			// are sucessors, remove
+			if ((act[suc].pred -= act[pred].id).Empty())
+				act[suc].pred += 0;
+			if ((act[pred].suc -= act[suc].id).Empty())
+				act[pred].suc += N(true) - 1;
+		}
+		else {
+			insertedPred += {act[pred].id, act[suc].id};
+			// are not sucessors, add
+			act[suc].pred += act[pred].id;
+			act[pred].suc += act[suc].id;
+		}
+	}
+}
+
+
+int CRCPSP::BaseLB(int baseLB, int mode) {
+	switch (baseLB) {
+	case 1:
+		return LBCPM();
+	case 2:
+		return LBC();
+	case 3:
+		return LBCPC();
+	case 4:
+		return LBCS();
+	case 5:
+		return LBIP();
+	case 6:
+		return LBIT();
+	case 7:
+		return LBNodePacking(mode);
+	case 8:
+		return LBParallelMachine(mode);
+	case 9:
+		return LBPR();
+	case 10:
+		return LBCT();
+	case 11:
+		return LBTP();
+	case 12:
+		return LBAll(mode);
+	}
+	return 0;
+}
+
+int CRCPSP::BestPR(int mode) {
+	TVector<int> best;
+	for (int rule = 0; rule <= 13 && (best.Empty() || best.Last() > bestLB); rule++) {
+		PriorityRule(rule, mode == 0);
+		if (best.Empty() || st.Last() < best.Last())
+			best = st;
+	}
+	st = best;
+	return st.Last();
+}
+
+int CRCPSP::BaseUB(int basePR, int mode) {
+	// only replace schedule if is better
+	TVector<int> backup = st;
+	if (basePR == 14)
+		BestPR(mode);
+	else
+		PriorityRule(basePR, mode == 0);
+	int ub = st.Last();
+	if (backup.Last() < ub)
+		st = backup;
+	return ub;
+}
+

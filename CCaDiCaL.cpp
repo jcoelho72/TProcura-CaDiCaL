@@ -394,6 +394,9 @@ int CCaDiCaL::ExecutaAlgoritmo()
 	// valor para indicador não processado
 	indicators[IND_RESULTADO] = -10;
 
+#ifdef _WIN32
+	printf("\nError, CaDiCaL solver is not supported on Windows\n");
+#else
 	error = system(cmdSTR); // lauch CaDiCaL solver
 	if (WIFEXITED(error) && WEXITSTATUS(error) == 127) {
 		printf("\nError launching CaDiCaL solver\nCommand line: %s", *cmdSTR);
@@ -506,6 +509,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 		if (Parametro(NIVEL_DEBUG) < DETALHE)
 			remove(solFile);
 	}
+#endif
 	return 1;
 }
 
@@ -964,7 +968,6 @@ void CCaDiCaL::MostrarSolucao() {
 	// matriz com 100 colunas, e quantas linhas necessárias
 	// cada casa fica com SEL, NSEL ou branco
 	TBits sel;
-	int maxInt = 0;
 	for (auto var : satSol)
 		if (var > 0)
 			sel.SetBit(var, true);
@@ -1018,3 +1021,43 @@ TVector<TString> CCaDiCaL::CreateUnaryVar(const TString& prefix, int min, int ma
 	return result;
 }
 
+// gate = ITE(decision,valueTrue,valueFalse) --- if valueTrue=0 is considered false, if valueFalse=0 is considered true
+// x=ITE(s,t,f)
+// s.t=>x, s./t=>/x
+// /s.f=>x, /s./f=>/x
+// t.f=>x, /t./f=>/x
+// clauses:
+// -s -t x, -s t -x, 
+// s -f x, s f -x
+// -t -f x, t f -x
+// Abilio et al. 2012 enconding
+// /f=>/n, /t.x=>/n (with n auxiliar variable, and x selector)
+// translating: /f=>/x, /t.s => /x
+// clauses: f -x, t -s -x
+TVector<TString> CCaDiCaL::GateITE(int gate, int decision, int valueTrue, int valueFalse) {
+	TVector<TString> cnf;
+
+	if (valueTrue != 0) {
+		cnf += TString().printf("%d %d %d 0", -decision, -valueTrue, gate); // -s -t x 
+		cnf += TString().printf("%d %d %d 0", -decision, valueTrue, -gate); // -s t -x, 
+	}
+	else  // valueTrue=0
+		cnf += TString().printf("%d %d 0", -decision, -gate); // -s -x, 
+
+	if (valueFalse != 0) {
+		cnf += TString().printf("%d %d %d 0", decision, -valueFalse, gate); // s -f x
+		cnf += TString().printf("%d %d %d 0", decision, valueFalse, -gate); // s f -x
+	}
+	else // valueFalse=1
+		cnf += TString().printf("%d %d 0", decision, gate); // s x
+
+	if (valueFalse != 0 && valueTrue != 0) {
+		cnf += TString().printf("%d %d %d 0", -valueTrue, -valueFalse, gate); // -t -f x
+		cnf += TString().printf("%d %d %d 0", valueTrue, valueFalse, -gate); // t f -x
+	}
+	else if (valueFalse == 0 && valueTrue != 0) 
+		cnf += TString().printf("%d %d 0", -valueTrue, gate); // -t x
+	else if (valueFalse != 0 && valueTrue == 0) 
+		cnf += TString().printf("%d %d 0", valueFalse, -gate); // f -x
+	return cnf;
+}

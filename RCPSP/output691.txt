@@ -1,0 +1,52 @@
+c 
+c caught signal 2 (SIGINT)
+c --- [ result ] -------------------------------------------------------------
+c 
+c UNKNOWN
+c 
+c --- [ run-time profiling ] -------------------------------------------------
+c 
+c process time taken by individual solving procedures
+c (percentage relative to process time for solving)
+c 
+c         0.00    0.00% parse
+c         0.00    0.00% search
+c         0.00    0.00% simplify
+c   =================================
+c         0.00    0.00% solve
+c 
+c last line shows process time for solving
+c (percentage relative to total process time)
+c 
+c --- [ statistics ] ---------------------------------------------------------
+c 
+c minimized:                     0         0.00 %  learned literals
+c shrunken:                      0         0.00 %  learned literals
+c minishrunken:                  0         0.00 %  learned literals
+c propagations:                  0         0.00 M  per second
+c ticks:                         0         0.00    propagation
+c 
+c seconds are measured in process time for solving
+c 
+c --- [ glue usage ] ---------------------------------------------------------
+c 
+c focused glue 2 used 0 clauses 0.000% accumulated 0.000% tier1
+c focused glue 3 used 0 clauses 0.000% accumulated 0.000%
+c focused glue 4 used 0 clauses 0.000% accumulated 0.000%
+c focused glue 5 used 0 clauses 0.000% accumulated 0.000%
+c focused glue 6 used 0 clauses 0.000% accumulated 0.000% tier2
+c 
+c stable glue 2 used 0 clauses 0.000% accumulated 0.000% tier1
+c stable glue 3 used 0 clauses 0.000% accumulated 0.000%
+c stable glue 4 used 0 clauses 0.000% accumulated 0.000%
+c stable glue 5 used 0 clauses 0.000% accumulated 0.000%
+c stable glue 6 used 0 clauses 0.000% accumulated 0.000% tier2
+c 
+c 
+c --- [ resources ] ----------------------------------------------------------
+c 
+c total process time since initialization:         0.00    seconds
+c total real time since initialization:            0.01    seconds
+c maximum resident set size of process:            5.38    MB
+c 
+c raising signal 2 (SIGINT)

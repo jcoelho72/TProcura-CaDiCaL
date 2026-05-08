@@ -1,6 +1,6 @@
 # Compiladores
 CC     = g++
-MPICC  = mpic++
+MPICC  = mpicxx
 
 # Flags
 #CFLAGS_DEBUG   = -Wall -g

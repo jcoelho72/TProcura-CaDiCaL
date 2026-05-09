@@ -1,5 +1,0 @@
-CaDiCaL crashed with signal 14
-Command line: exec ./../cadical/build/cadical -t 10 -w original/CV_0.sol  original/CV_1.cnf > original/CV_0.txt 2>&1
-Reproduce: ./../cadical/build/cadical -t 10  input1265.cnf
-Host: (null)
-3.0.0

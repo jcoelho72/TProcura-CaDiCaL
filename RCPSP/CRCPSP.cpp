@@ -584,8 +584,8 @@ TBits CRCPSP::OriginalBits(TBits& bits) {
 int CRCPSP::ExecutaAlgoritmo()
 {
 	calls = 0;
-	// check if there is no procedure
-	if (Parametro(ALGORITMO) == 0)
+	// check if there is no procedure or no instance
+	if (Parametro(ALGORITMO) == 0 || N() == 0)
 		return 1;
 
 	// search strategy

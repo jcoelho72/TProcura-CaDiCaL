@@ -26,7 +26,7 @@ if [ $idx -lt 7 ];  then stepInc=1000; else stepInc=1; fi
 
 # extract instances
 
-if [$idversion -gt 0]; 
+if [ $idversion -gt 0 ]; 
 then
 mkdir -p ${versions[$idversion]}
 tar xzf Instancias/rcp.tar.gz --wildcards "original/${prefixSet[$idx]}_*.rcp"
@@ -39,7 +39,7 @@ tar xzf Instancias/rcp.tar.gz --wildcards "${versions[$idversion]}/${prefixSet[$
 
 bin/Release/RCPSP 1:${lastInstance[$idx]} -R Resultados/${prefixSet[$idx]}_${versions[$idversion]}_LB \
   -F ${versions[$idversion]}/${prefixSet[$idx]}_ \
-  -I 16 -P P1=0 P2=3 P268=1:12 x P272=0:2 x P277=0:3 \
+  -K 1 -I 16 -P P1=0 P2=3 P268=1:12 x P272=0:2 x P277=0:3 \
         -P P1=0 P2=3 P268=7 P269=1:3 x P272=0:2 x P277=0:3 \
         -P P1=0 P2=3 P268=8 P269=1:2 x P272=0:2 x P277=0:3
 

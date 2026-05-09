@@ -1,5 +1,0 @@
-CaDiCaL crashed with signal 2
-Command line: exec ./../cadical/build/cadical -t 10 -w Instancias/DC1/mv0.sol  Instancias/DC1/mv33.cnf > Instancias/DC1/mv0.txt 2>&1
-Reproduce: ./../cadical/build/cadical -t 10  input691.cnf
-Host: (null)
-3.0.0

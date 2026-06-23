@@ -7,6 +7,282 @@
 // caminho para o executável do solver
 TString CCaDiCaL::solver = "./cadical/build/cadical";
 
+// Indicadores
+int CCaDiCaL::IND_MEMORY;
+int CCaDiCaL::IND_PROPAGATIONS;
+int CCaDiCaL::IND_TICKS;
+int CCaDiCaL::IND_RESTARTS;
+int CCaDiCaL::IND_LEARNED;
+int CCaDiCaL::IND_FIXED;
+int CCaDiCaL::IND_MAXLEVEL;
+int CCaDiCaL::IND_NUMVARS;
+int CCaDiCaL::IND_NUMCLAUSES;
+int CCaDiCaL::IND_CADICAL;
+int CCaDiCaL::IND_CONFLICTS = IND_ITERACOES;
+
+// Parâmetros CaDiCaL 
+int CCaDiCaL::LIMIT_DECISIONS;
+int CCaDiCaL::LOCAL_SEARCH;
+int CCaDiCaL::PREPROCESSING;
+int CCaDiCaL::DEFINED_CONFIGURATIONS;
+// all the rest of CaDiCaL parameters
+int CCaDiCaL::ARENA;        // --arena = bool               allocate clauses in arena[true]
+int CCaDiCaL::ARENACOMPACT; // --arenacompact = bool        keep clauses compact[true]
+int CCaDiCaL::ARENASORT;    // --arenasort = bool           sort clauses in arena[true]
+int CCaDiCaL::ARENATYPE;    // --arenatype = 1..3           1 = clause, 2 = var, 3 = queue[3]
+int CCaDiCaL::BACKBONE;     // --backbone = 0..2            binary clause backbone[1]
+int CCaDiCaL::BACKBONEEFFORT; // --backboneeffort = 0..1e5    binary effort in per mile[20]
+int CCaDiCaL::BACKBONEMAXROUNDS; // --backbonemaxrounds = 0..1e5 backbone rounds limit[1e3]
+int CCaDiCaL::BACKBONEROUNDS; // --backbonerounds = 0..1e5    backbone rounds limit[100]
+int CCaDiCaL::BACKBONETHRESH; //--backbonethresh = 0..1e9    delay if ticks smaller thresh* clauses[5]
+int CCaDiCaL::BINARY;       // --binary = bool              use binary proof format[true]
+int CCaDiCaL::BLOCK;			// 	--block = bool               blocked clause elimination[false]
+int CCaDiCaL::BLOCKMAXCLSLIM; // 	--blockmaxclslim = 1..2e9    maximum clause size[1e5]
+int CCaDiCaL::BLOCKMINCLSLIM; // 	--blockminclslim = 2..2e9    minimum clause size[2]
+int CCaDiCaL::BLOCKOCCLIM; // 	--blockocclim = 1..2e9       occurrence limit[1e2]
+int CCaDiCaL::BUMP;			// 	--bump = bool                bump variables[true]
+int CCaDiCaL::BUMPREASON;  // 	--bumpreason = bool          bump reason literals too[true]
+int CCaDiCaL::BUMPREASONDEPTH; // 	--bumpreasondepth = 1..3     bump reason depth[1]
+int CCaDiCaL::BUMPREASONLIMIT; // 	--bumpreasonlimit = 1..2e9   bump reason limit[10]
+int CCaDiCaL::BUMPREASONRATE; // 	--bumpreasonrate = 1..2e9    bump reason decision rate[100]
+int CCaDiCaL::CHECK;        //	--check = bool               enable internal checking[false]
+int CCaDiCaL::CHECKASSUMPTIONS; //--checkassumptions = bool    check assumptions satisfied[true]
+int CCaDiCaL::CHECKCONSTRAINT;	// 	--checkconstraint = bool     check constraint satisfied[true]
+int CCaDiCaL::CHECKFAILED;  // 	--checkfailed = bool         check failed literals form core[true]
+int CCaDiCaL::CHECKFROZEN;  // 	--checkfrozen = bool         check all frozen semantics[false]
+int CCaDiCaL::CHECKPROOF;   // 	--checkproof = 0..3          1 = drat, 2 = lrat, 3 = both[3]
+int CCaDiCaL::CHECKWITNESS; // 	--checkwitness = bool        check witness internally[true]
+int CCaDiCaL::CHRONO;       // 	--chrono = 0..2              chronological backtracking[1]
+int CCaDiCaL::CHRONOALWAYS; // 	--chronoalways = bool        force always chronological[false]
+int CCaDiCaL::CHRONOLEVELIM; // 	--chronolevelim = 0..2e9     chronological level limit[1e2]
+int CCaDiCaL::CHRONOREUSETRAIL; // 	--chronoreusetrail = bool    reuse trail chronologically[true]
+int CCaDiCaL::COMPACT;      // 	--compact = bool             compact internal variables[true]
+int CCaDiCaL::COMPACTINT;   // 	--compactint = 1..2e9        compacting interval[2e3]
+int CCaDiCaL::COMPACTLIM;   // 	--compactlim = 0..1e3        inactive limit per mille[1e2]
+int CCaDiCaL::COMPACTMIN;   // 	--compactmin = 1..2e9        minimum inactive limit[1e2]
+int CCaDiCaL::CONDITION;    // 	--condition = bool           globally blocked clause elim[false]
+int CCaDiCaL::CONDITIONEFFORT; // 	--conditioneffort = 1..1e5   relative efficiency per mille[100]
+int CCaDiCaL::CONDITIONINT; // 	--conditionint = 1..2e9      initial conflict interval[1e4]
+int CCaDiCaL::CONDITIONMAXEFF; // 	--conditionmaxeff = 0..2e9   maximum condition efficiency[1e7]
+int CCaDiCaL::CONDITIONMAXRAT; // 	--conditionmaxrat = 1..2e9   maximum clause variable ratio[100]
+int CCaDiCaL::CONDITIONMINEFF; // 	--conditionmineff = 0..2e9   minimum condition efficiency[0]
+int CCaDiCaL::CONGRUENCE;   // 	--congruence = bool          congruence closure[true]
+int CCaDiCaL::CONGRUENCEAND; // 	--congruenceand = bool       extract AND gates[true]
+int CCaDiCaL::CONGRUENCEANDARITY; // 	--congruenceandarity = 2..5e7 AND gate arity limit[1e6]
+int CCaDiCaL::CONGRUENCEBINARIES; // 	--congruencebinaries = bool  extract binary and strengthen ternary clauses[true]
+int CCaDiCaL::CONGRUENCEITE; // 	--congruenceite = bool       extract ITE gates[true]
+int CCaDiCaL::CONGRUENCEXOR; // 	--congruencexor = bool       extract XOR gates[true]
+int CCaDiCaL::CONGRUENCEXORARITY; // 	--congruencexorarity = 2..31 XOR gate arity limit[4]
+int CCaDiCaL::CONGRUENCEXORCOUNTS; // 	--congruencexorcounts = 1..5e6 XOR gate round[1]
+int CCaDiCaL::COVER;        // 	--cover = bool               covered clause elimination[false]
+int CCaDiCaL::COVEREFFORT;  // 	--covereffort = 1..1e5       relative efficiency per mille[4]
+int CCaDiCaL::COVERMAXCLSLIM; // 	--covermaxclslim = 1..2e9    maximum clause size[1e5]
+int CCaDiCaL::COVERMAXEFF;  // 	--covermaxeff = 0..2e9       maximum cover efficiency[1e8]
+int CCaDiCaL::COVERMINCLSLIM; // 	--coverminclslim = 2..2e9    minimum clause size[2]
+int CCaDiCaL::COVERMINEFF;  // 	--covermineff = 0..2e9       minimum cover efficiency[0]
+int CCaDiCaL::DECOMPOSE;     //	--decompose = bool           decompose BIG in SCCs and ELS[true]
+int CCaDiCaL::DECOMPOSEROUNDS; // --decomposerounds = 1..16    number of decompose rounds[2]
+int CCaDiCaL::DEDUPLICATE;  //	--deduplicate = bool         remove duplicated binaries[true]
+int CCaDiCaL::DEDUPLICATEALLINIT; //	--deduplicateallinit = bool  remove duplicated clauses once before solving[false]
+int CCaDiCaL::EAGERSUBSUME;  //	--eagersubsume = bool        subsume recently learned[true]
+int CCaDiCaL::EAGERSUBSUMELIM; //	--eagersubsumelim = 1..1e3   limit on subsumed candidates[20]
+int CCaDiCaL::ELIM;         //	--elim = bool                bounded variable elimination[true]
+int CCaDiCaL::ELIMANDS;      //	--elimands = bool            find AND gates[true]
+int CCaDiCaL::ELIMBACKWARD;  //	--elimbackward = bool        eager backward subsumption[true]
+int CCaDiCaL::ELIMBOUNDMAX;  //	--elimboundmax = -1..2e6     maximum elimination bound[16]
+int CCaDiCaL::ELIMBOUNDMIN;  //	--elimboundmin = -1..2e6     minimum elimination bound[0]
+int CCaDiCaL::ELIMCLSLIM;    //	--elimclslim = 2..2e9        resolvent size limit[1e2]
+int CCaDiCaL::ELIMDEF;      //	--elimdef = bool             mine definitions with kitten[false]
+int CCaDiCaL::ELIMDEFCORES; //	--elimdefcores = 1..100      number of unsat cores[1]
+int CCaDiCaL::ELIMDEFTICKS;  //	--elimdefticks = 0..2e9      kitten ticks limit[2e5]
+int CCaDiCaL::ELIMEFFORT;    //	--elimeffort = 1..1e5        relative efficiency per mille[1e3]
+int CCaDiCaL::ELIMEQUIVS;    //	--elimequivs = bool          find equivalence gates[true]
+int CCaDiCaL::ELIMINT;      //	--elimint = 1..2e9           elimination interval[2e3]
+int CCaDiCaL::ELIMITES;     //	--elimites = bool            find if - then - else gates[true]
+int CCaDiCaL::ELIMLIMITED;  //	--elimlimited = bool         limit resolutions[true]
+int CCaDiCaL::ELIMMAXEFF;   //	--elimmaxeff = 0..2e9        maximum elimination efficiency[2e9]
+int CCaDiCaL::ELIMMINEFF;   //	--elimmineff = 0..2e9        minimum elimination efficiency[1e7]
+int CCaDiCaL::ELIMOCCLIM;   //	--elimocclim = 0..2e9        occurrence limit[1e2]
+int CCaDiCaL::ELIMPROD;     //	--elimprod = 0..1e4          elim score product weight[1]
+int CCaDiCaL::ELIMROUNDS;   //	--elimrounds = 1..512        usual number of rounds[2]
+int CCaDiCaL::ELIMSUBST;    //	--elimsubst = bool           elimination by substitution[true]
+int CCaDiCaL::ELIMSUM;      //	--elimsum = 0..1e4           elimination score sum weight[1]
+int CCaDiCaL::ELIMXORLIM;   //	--elimxorlim = 2..27         maximum XOR size[5]
+int CCaDiCaL::ELIMXORS;     //	--elimxors = bool            find XOR gates[true]
+int CCaDiCaL::EMADECISIONS; //	--emadecisions = 1..2e9      window decision rate[1e5]
+int CCaDiCaL::EMAGLUEFAST;  //	--emagluefast = 1..2e9       window fast glue[33]
+int CCaDiCaL::EMAGLUESLOW;  //	--emaglueslow = 1..2e9       window slow glue[1e5]
+int CCaDiCaL::EMAJUMP;      //	--emajump = 1..2e9           window back - jump level[1e5]
+int CCaDiCaL::EMALEVEL;     //	--emalevel = 1..2e9          window back - track level[1e5]
+int CCaDiCaL::EMASIZE;      //	--emasize = 1..2e9           window learned clause size[1e5]
+int CCaDiCaL::EMATRAILFAST; //	--ematrailfast = 1..2e9      window fast trail[1e2]
+int CCaDiCaL::EMATRAILSLOW; //	--ematrailslow = 1..2e9      window slow trail[1e5]
+int CCaDiCaL::EXTEAGERREASONS; //	--exteagerreasons = bool     eagerly ask for all reasons(0: only when needed)[true]
+int CCaDiCaL::EXTEAGERRECALC; //	--exteagerrecalc = bool      after eagerly asking for reasons recalculate all levels(0: trust the external tool)[true]
+int CCaDiCaL::EXTERNALLRAT; //	--externallrat = bool        external lrat[false]
+int CCaDiCaL::FACTOR;			//	--factor = bool              bounded variable addition[true]
+int CCaDiCaL::FACTORCANDROUNDS; //--factorcandrounds = 0..2e9  candidates reduction rounds[2]
+int CCaDiCaL::FACTORCHECK;  //	--factorcheck = 0..2         API checks that variables have been declared(1 = only with factor on; 2 = always)[1]
+int CCaDiCaL::FACTORDELAY;  //	--factordelay = 0..12        delay bounded variable addition between eliminations[4]
+int CCaDiCaL::FACTOREFFORT; //	--factoreffort = 0..1e6      relative effort per mille[50]
+int CCaDiCaL::FACTORINITICKS; //	--factoriniticks = 1..1e6    initial effort in millions[300]
+int CCaDiCaL::FACTORSIZE;   //	--factorsize = 2..2e9        clause size limit[5]
+int CCaDiCaL::FACTORTHRESH; //	--factorthresh = 0..100      delay if ticks smaller thresh* clauses[7]
+int CCaDiCaL::FACTORUNBUMP; //	--factorunbump = bool        extension variable with lowest importance[1:as in kissat][true]
+int CCaDiCaL::FASTELIM;    //	--fastelim = bool            fast BVE during preprocessing[true]
+int CCaDiCaL::FASTELIMBOUND; //	--fastelimbound = 1..1e3     fast BVE bound during preprocessing[8]
+int CCaDiCaL::FASTELIMCLSLIM; //	--fastelimclslim = 2..2e9    fast BVE resolvent size limit[1e2]
+int CCaDiCaL::FASTELIMOCCLIM; //	--fastelimocclim = 1..2e9    fast BVE occurence limit during preprocessing[100]
+int CCaDiCaL::FASTELIMROUNDS; //	--fastelimrounds = 1..512    number of fastelim rounds[4]
+int CCaDiCaL::FLUSH;       //	--flush = bool               flush redundant clauses[false]
+int CCaDiCaL::FLUSHFACTOR; //	--flushfactor = 1..1e3       interval increase[3]
+int CCaDiCaL::FLUSHINT;    //	--flushint = 1..2e9          initial limit[1e5]
+int CCaDiCaL::FORCEPHASE;  //	--forcephase = bool          always use initial phase[false]
+int CCaDiCaL::FRAT;        //	--frat = 0..2                1 = frat(lrat); 2 = frat(drat)[0]
+int CCaDiCaL::IDRUP;       //	--idrup = bool               incremental proof format[false]
+int CCaDiCaL::ILB;         //	--ilb = 0..2                 ILB(incremental lazy backtrack) (0: no; 1 : assumptions only; 2 : everything)[0]
+int CCaDiCaL::INCDECAY;    //	--incdecay = 0..4            decay clauses when doing incremental clauses[1]
+int CCaDiCaL::INCDECAYINT; //	--incdecayint = 1..2e9       decay interval when doing incremental clauses[1e6]
+int CCaDiCaL::INPROBEINT;  //	--inprobeint = 1..2e9        inprobing interval[100]
+int CCaDiCaL::INPROBING;   //	--inprobing = bool           enable probe inprocessing[true]
+int CCaDiCaL::INPROCESSING; //	--inprocessing = bool        enable general inprocessing[true]
+int CCaDiCaL::INSTANTIATE; //	--instantiate = bool         variable instantiation[false]
+int CCaDiCaL::INSTANTIATECLSLIM; //	--instantiateclslim = 2..2e9 minimum clause size[3]
+int CCaDiCaL::INSTANTIATEOCCLIM; //	--instantiateocclim = 1..2e9 maximum occurrence limit[1]
+int CCaDiCaL::INSTANTIATEONCE; //	--instantiateonce = bool     instantiate each clause once[true]
+int CCaDiCaL::LIDRUP;      //	--lidrup = bool              linear incremental proof format[false]
+int CCaDiCaL::LRAT;        //	--lrat = bool                use LRAT proof format[false]
+int CCaDiCaL::LUCKY;       //	--lucky = bool               lucky phases[true]
+int CCaDiCaL::LUCKYASSUMPTIONS; //	--luckyassumptions = bool    lucky phases with assumptions[true]
+int CCaDiCaL::LUCKYEARLY;  //	--luckyearly = bool          lucky phases before preprocessing[true]
+int CCaDiCaL::LUCKYLATE;   //	--luckylate = bool           lucky phases after preprocessing[true]
+int CCaDiCaL::MINIMIZE;    //	--minimize = bool            minimize learned clauses[true]
+int CCaDiCaL::MINIMIZEDEPTH; //	--minimizedepth = 0..1e3     minimization depth[1e3]
+int CCaDiCaL::MINIMIZETICKS; //	--minimizeticks = bool       increment ticks in minimization[true]
+int CCaDiCaL::OTFS;        //	--otfs = bool                on - the - fly self subsumption[true]
+int CCaDiCaL::PHASE;       //	--phase = bool               initial phase[true]
+int CCaDiCaL::PREPROCESSINIT; //	--preprocessinit = 0..2e9    initial preprocessing base limit[2e6]
+int CCaDiCaL::PREPROCESSLIGHT; //	--preprocesslight = bool     lightweight preprocessing[true]
+int CCaDiCaL::PROBE;       //	--probe = bool               failed literal probing[true]
+int CCaDiCaL::PROBEEFFORT; //	--probeeffort = 1..1e5       relative efficiency per mille[8]
+int CCaDiCaL::PROBEHBR;    //	--probehbr = bool            learn hyper binary clauses[true]
+int CCaDiCaL::PROBETHRESH; //	--probethresh = 0..100       delay if ticks smaller thresh* clauses[0]
+int CCaDiCaL::PROFILE;     //	--profile = 0..4             profiling level[2]
+int CCaDiCaL::QUIET;       //	--quiet = bool               disable all messages[false]
+int CCaDiCaL::RADIXSORTLIM; //	--radixsortlim = 0..2e9      radix sort limit[32]
+int CCaDiCaL::RANDEC;      //	--randec = bool              random decisions[false]
+int CCaDiCaL::RANDECFOCUSED; //	--randecfocused = bool       random decisions in focused mode[true]
+int CCaDiCaL::RANDECINIT;  //	--randecinit = 2..2e9        inital random decision interval[1e3]
+int CCaDiCaL::RANDECINT;   //	--randecint = 0..2e9         random conflict length[500]
+int CCaDiCaL::RANDECLENGTH; //	--randeclength = 1..1e9      length random decisions phases[10]
+int CCaDiCaL::RANDECSTABLE; //	--randecstable = bool        random decisions in stable mode[false]
+int CCaDiCaL::REALTIME;    //	--realtime = bool            real instead of process time[false]
+int CCaDiCaL::RECOMPUTETIER; //	--recomputetier = bool       recompute tiers[true]
+int CCaDiCaL::REDUCE;      //	--reduce = bool              reduce useless clauses[true]
+int CCaDiCaL::REDUCEINIT;  //	--reduceinit = 1..1e6        initial interval[300]
+int CCaDiCaL::REDUCEINT;   //	--reduceint = 2..1e6         reduce interval[25]
+int CCaDiCaL::REDUCEOPT;   //	--reduceopt = 0..2           0 = prct; 1 = sqrt; 2 = max[1]
+int CCaDiCaL::REDUCETARGET; //	--reducetarget = 10..1e2     reduce fraction in percent[75]
+int CCaDiCaL::REDUCETIER1GLUE; //	--reducetier1glue = 1..2e9   glue of kept learned clauses[2]
+int CCaDiCaL::REDUCETIER2GLUE; //	--reducetier2glue = 1..2e9   glue of tier two clauses[6]
+int CCaDiCaL::RELUCTANT;   //	--reluctant = bool           stable reluctant doubling restarts[true]
+int CCaDiCaL::RELUCTANTINT; //	--reluctantint = 0..2e9      reluctant doubling period[1024]
+int CCaDiCaL::RELUCTANTMAX; //	--reluctantmax = 0..2e9      maximum reluctant doubling period[1048576]
+int CCaDiCaL::REPHASE;     //	--rephase = 0..2             enable resetting phase(0 = no; 1 = always; 2 = stable - only)[1]
+int CCaDiCaL::REPHASEINT;  //	--rephaseint = 1..2e9        rephase interval[1e3]
+int CCaDiCaL::REPORT;      //	--report = bool              enable reporting[false]
+int CCaDiCaL::REPORTALL;   //	--reportall = bool           report even if not successful[false]
+int CCaDiCaL::REPORTSOLVE; //	--reportsolve = bool         use solving not process time[false]
+int CCaDiCaL::RESTART;     //	--restart = bool             enable restarts[true]
+int CCaDiCaL::RESTARTINT;  //	--restartint = 1..2e9        restart interval[2]
+int CCaDiCaL::RESTARTMARGINFOCUSED; //	--restartmarginfocused = 0..25 focused slow fast margin in percent[10]
+int CCaDiCaL::RESTARTMARGINSTABLE; //	--restartmarginstable = 0..25 stable slow fast margin in percent[25]
+int CCaDiCaL::RESTARTREUSETRAIL; //	--restartreusetrail = bool   enable trail reuse[true]
+int CCaDiCaL::RESTOREALL;  //	--restoreall = 0..2          restore all clauses(2 = really)[0]
+int CCaDiCaL::RESTOREFLUSH; //	--restoreflush = bool        remove satisfied clauses[false]
+int CCaDiCaL::REVERSE;     //	--reverse = bool             reverse variable ordering[false]
+int CCaDiCaL::SCORE;       //	--score = bool               use EVSIDS scores[true]
+int CCaDiCaL::SCOREFACTOR;   //	--scorefactor = 500..1e3     score factor per mille[950]
+int CCaDiCaL::SHRINK;      //	--shrink = 0..3              shrink conflict clause(1 = binary - only; 2 = minimize - on - pulling; 3 = full)[3]
+int CCaDiCaL::SHRINKREAP;   //	--shrinkreap = bool          use a reap for shrinking[true]
+int CCaDiCaL::SHUFFLE;      //	--shuffle = bool             shuffle variables[false]
+int CCaDiCaL::SHUFFLEQUEUE;  //	--shufflequeue = bool        shuffle variable queue[true]
+int CCaDiCaL::SHUFFLERANDOM; //	--shufflerandom = bool       not reverse but random[false]
+int CCaDiCaL::SHUFFLESCORES; //	--shufflescores = bool       shuffle variable scores[true]
+int CCaDiCaL::STABILIZE;    //	--stabilize = bool           enable stabilizing phases[true]
+int CCaDiCaL::STABILIZEINIT; //	--stabilizeinit = 1..2e9     stabilizing interval[1e3]
+int CCaDiCaL::STABILIZEONLY;  //	--stabilizeonly = bool       only stabilizing phases[false]
+int CCaDiCaL::STATS;        //	--stats = bool               print all statistics at the end of the run[false]
+int CCaDiCaL::STUBBORNIOFOCUSED; //	--stubbornIOfocused = bool   force phases to I / O in focused mode every once in a while (requires rephase == 2)[false]
+int CCaDiCaL::SUBSUME;      //	--subsume = bool             enable clause subsumption[true]
+int CCaDiCaL::SUBSUMEBINLIM; //	--subsumebinlim = 0..2e9     watch list length limit[1e4]
+int CCaDiCaL::SUBSUMECLSLIM; //	--subsumeclslim = 0..2e9     clause length limit[1e2]
+int CCaDiCaL::SUBSUMEEFFORT; //	--subsumeeffort = 1..1e5     relative efficiency per mille[1e3]
+int CCaDiCaL::SUBSUMELIMITED; //	--subsumelimited = bool      limit subsumption checks[true]
+int CCaDiCaL::SUBSUMEMAXEFF; //	--subsumemaxeff = 0..2e9     maximum subsuming efficiency[1e8]
+int CCaDiCaL::SUBSUMEMINEFF; //	--subsumemineff = 0..2e9     minimum subsuming efficiency[0]
+int CCaDiCaL::SUBSUMEOCCLIM; //	--subsumeocclim = 0..2e9     watch list length limit[1e2]
+int CCaDiCaL::SUBSUMESTR;   //	--subsumestr = bool          subsume strengthen[true]
+int CCaDiCaL::SWEEP;        //	--sweep = bool               enable SAT sweeping[true]
+int CCaDiCaL::SWEEPCLAUSES; //	--sweepclauses = 0..2e9      environment clauses[1024]
+int CCaDiCaL::SWEEPCOMPLETE; //	--sweepcomplete = bool       run SAT sweeping to completion[false]
+int CCaDiCaL::SWEEPCOUNTBINARY; //	--sweepcountbinary = bool    count binaries to environment[true]
+int CCaDiCaL::SWEEPDEPTH;   //	--sweepdepth = 0..2e9        environment depth[2]
+int CCaDiCaL::SWEEPEFFORT;  //	--sweepeffort = 0..1e4       relative effort in ticks per mille[1e2]
+int CCaDiCaL::SWEEPFLIPROUNDS; //	--sweepfliprounds = 0..2e9   flipping rounds[1]
+int CCaDiCaL::SWEEPMAXCLAUSES; //	--sweepmaxclauses = 2..2e9   maximum environment clauses[3e5]
+int CCaDiCaL::SWEEPMAXDEPTH; //	--sweepmaxdepth = 1..2e9     maximum environment depth[3]
+int CCaDiCaL::SWEEPMAXVARS; //	--sweepmaxvars = 2..2e9      maximum environment variables[8192]
+int CCaDiCaL::SWEEPRAND;    //	--sweeprand = bool           randomize sweeping environment[false]
+int CCaDiCaL::SWEEPTHRESH;  //	--sweepthresh = 0..100       delay if ticks smaller thresh* clauses[5]
+int CCaDiCaL::SWEEPVARS;    //	--sweepvars = 0..2e9         environment variables[256]
+int CCaDiCaL::TARGET;       //	--target = 0..2              target phases(1 = stable only)[1]
+int CCaDiCaL::TERMINATEINT; //	--terminateint = 0..1e4      termination check interval[10]
+int CCaDiCaL::TERNARY;      //	--ternary = bool             hyper ternary resolution[true]
+int CCaDiCaL::TERNARYEFFORT; //	--ternaryeffort = 1..1e5     relative efficiency per mille[8]
+int CCaDiCaL::TERNARYMAXADD; //	--ternarymaxadd = 0..1e4     max clauses added in percent[1e3]
+int CCaDiCaL::TERNARYOCCLIM; //	--ternaryocclim = 1..2e9     ternary occurrence limit[1e2]
+int CCaDiCaL::TERNARYROUNDS; //	--ternaryrounds = 1..16      maximum ternary rounds[2]
+int CCaDiCaL::TERNARYTHRESH; //	--ternarythresh = 0..100     delay if ticks smaller thresh* clauses[6]
+int CCaDiCaL::TIER1LIMIT;   //	--tier1limit = 0..100        limit of tier1 usage in percentage[50]
+int CCaDiCaL::TIER1MINGLUE; //	--tier1minglue = 0..100      lowest tier1 limit[0]
+int CCaDiCaL::TIER2LIMIT;   //	--tier2limit = 0..100        limit of tier2 usage in percentage[90]
+int CCaDiCaL::TIER2MINGLUE; //	--tier2minglue = 0..100      lowest tier2 limit[0]
+int CCaDiCaL::TRANSRED;     //	--transred = bool            transitive reduction of BIG[true]
+int CCaDiCaL::TRANSREDEFFORT; //	--transredeffort = 1..1e5    relative efficiency per mille[1e2]
+int CCaDiCaL::TRANSREDMAXEFF; //	--transredmaxeff = 0..2e9    maximum
+int CCaDiCaL::TRANSREDMINEFF; //	--transredmineff = 0..2e9    minimum efficiency[0]
+int CCaDiCaL::VERBOSE;     //	--verbose = 0..3             more verbose messages[0]              
+int CCaDiCaL::VERIPB;      //	--veripb = 0..4              odd = check - deletions; > 2 drat[0]
+int CCaDiCaL::VIVIFY;      //	--vivify = bool              vivification[true]
+int CCaDiCaL::VIVIFYCALCTIER; //	--vivifycalctier = bool      recalculate tier limits[false]
+int CCaDiCaL::VIVIFYDEMOTE; //	--vivifydemote = bool        demote irredundant or delete directly[false]
+int CCaDiCaL::VIVIFYEFFORT; //	--vivifyeffort = 0..1e5      overall efficiency per mille[50]
+int CCaDiCaL::VIVIFYFLUSH; //	--vivifyflush = bool         flush subsumed before vivification rounds[true]
+int CCaDiCaL::VIVIFYINST;  //	--vivifyinst = bool          instantiate last literal when vivify[true]
+int CCaDiCaL::VIVIFYIRRED; //	--vivifyirred = bool         vivification of irredundant clauses[true]
+int CCaDiCaL::VIVIFYIRREDEFF; //	--vivifyirredeff = 1..100    irredundant efficiency per mille[3]
+int CCaDiCaL::VIVIFYONCE;  //	--vivifyonce = 0..2          vivify once : 1 = red; 2 = red + irr[0]
+int CCaDiCaL::VIVIFYRETRY; //	--vivifyretry = 0..5         re - vivify clause if vivify was successful[0]
+int CCaDiCaL::VIVIFYSCHEDMAX; //	--vivifyschedmax = 10..2e9   maximum schedule size[5e3]
+int CCaDiCaL::VIVIFYTHRESH; //	--vivifythresh = 0..100      delay if ticks smaller thresh* clauses[20]
+int CCaDiCaL::VIVIFYTIER1; //	--vivifytier1 = bool         vivification tier1[true]
+int CCaDiCaL::VIVIFYTIER1EFF; //	--vivifytier1eff = 0..100    relative tier1 effort[4]
+int CCaDiCaL::VIVIFYTIER2; //	--vivifytier2 = bool         vivification tier2[true]
+int CCaDiCaL::VIVIFYTIER2EFF; //	--vivifytier2eff = 1..100    relative tier2 effort[2]
+int CCaDiCaL::VIVIFYTIER3; //	--vivifytier3 = bool         vivification tier3[true]
+int CCaDiCaL::VIVIFYTIER3EFF; //	--vivifytier3eff = 1..100    relative tier3 effort[1]
+int CCaDiCaL::WALK;        //	--walk = bool                enable random walks[true]
+int CCaDiCaL::WALKEFFORT;  //	--walkeffort = 1..1e5        relative efficiency per mille[80]
+int CCaDiCaL::WALKFULLOCC; //	--walkfullocc = bool         use Kissat's full occurrences instead of the single watched [false]
+int CCaDiCaL::WALKMAXEFF;  //	--walkmaxeff = 0..2e9        maximum efficiency(in 1e3 ticks)[1e7]
+int CCaDiCaL::WALKMINEFF;  //	--walkmineff = 0..1e7        minimum efficiency[0]
+int CCaDiCaL::WALKNONSTABLE; //	--walknonstable = bool       walk in non - stabilizing phase[true]
+int CCaDiCaL::WALKREDUNDANT; //	--walkredundant = bool       walk redundant clauses too[false]
+int CCaDiCaL::WARMUP;      //	--warmup = bool              warmup before walk using propagation[true]
+
+
+
 void CCaDiCaL::ResetParametros()
 {
 	TVector<TString> trueFalse = { "false", "true" };
@@ -20,7 +296,275 @@ void CCaDiCaL::ResetParametros()
 	parametro[LIMITE_TEMPO] = { "t",10,1,86400,"set wall clock time limit" };
 	parametro[LIMITE_ITERACOES] = { "c",0,0,1000000000,"limit the number of conflicts (default unlimited)" };
 
+	int id = parametro.Count();
+
+#define INICIALIZA(X) X = id++;
+
+	// parâmetros CaDiCaL
+	INICIALIZA(LIMIT_DECISIONS);
+	INICIALIZA(LOCAL_SEARCH);
+	INICIALIZA(PREPROCESSING);
+	INICIALIZA(DEFINED_CONFIGURATIONS);
+	INICIALIZA(ARENA);
+	INICIALIZA(ARENACOMPACT);
+	INICIALIZA(ARENASORT);
+	INICIALIZA(ARENATYPE);
+	INICIALIZA(BACKBONE);
+	INICIALIZA(BACKBONEEFFORT);
+	INICIALIZA(BACKBONEMAXROUNDS);
+	INICIALIZA(BACKBONEROUNDS);
+	INICIALIZA(BACKBONETHRESH);
+	INICIALIZA(BINARY);
+	INICIALIZA(BLOCK);
+	INICIALIZA(BLOCKMAXCLSLIM);
+	INICIALIZA(BLOCKMINCLSLIM);
+	INICIALIZA(BLOCKOCCLIM);
+	INICIALIZA(BUMP);
+	INICIALIZA(BUMPREASON);
+	INICIALIZA(BUMPREASONDEPTH);
+	INICIALIZA(BUMPREASONLIMIT);
+	INICIALIZA(BUMPREASONRATE);
+	INICIALIZA(CHECK);
+	INICIALIZA(CHECKASSUMPTIONS);
+	INICIALIZA(CHECKCONSTRAINT);
+	INICIALIZA(CHECKFAILED);
+	INICIALIZA(CHECKFROZEN);
+	INICIALIZA(CHECKPROOF);
+	INICIALIZA(CHECKWITNESS);
+	INICIALIZA(CHRONO);
+	INICIALIZA(CHRONOALWAYS);
+	INICIALIZA(CHRONOLEVELIM);
+	INICIALIZA(CHRONOREUSETRAIL);
+	INICIALIZA(COMPACT);
+	INICIALIZA(COMPACTINT);
+	INICIALIZA(COMPACTLIM);
+	INICIALIZA(COMPACTMIN);
+	INICIALIZA(CONDITION);
+	INICIALIZA(CONDITIONEFFORT);
+	INICIALIZA(CONDITIONINT);
+	INICIALIZA(CONDITIONMAXEFF);
+	INICIALIZA(CONDITIONMAXRAT);
+	INICIALIZA(CONDITIONMINEFF);
+	INICIALIZA(CONGRUENCE);
+	INICIALIZA(CONGRUENCEAND);
+	INICIALIZA(CONGRUENCEANDARITY);
+	INICIALIZA(CONGRUENCEBINARIES);
+	INICIALIZA(CONGRUENCEITE);
+	INICIALIZA(CONGRUENCEXOR);
+	INICIALIZA(CONGRUENCEXORARITY);
+	INICIALIZA(CONGRUENCEXORCOUNTS);
+	INICIALIZA(COVER);
+	INICIALIZA(COVEREFFORT);
+	INICIALIZA(COVERMAXCLSLIM);
+	INICIALIZA(COVERMAXEFF);
+	INICIALIZA(COVERMINCLSLIM);
+	INICIALIZA(COVERMINEFF);
+	INICIALIZA(DECOMPOSE);
+	INICIALIZA(DECOMPOSEROUNDS);
+	INICIALIZA(DEDUPLICATE);
+	INICIALIZA(DEDUPLICATEALLINIT);
+	INICIALIZA(EAGERSUBSUME);
+	INICIALIZA(EAGERSUBSUMELIM);
+	INICIALIZA(ELIM);
+	INICIALIZA(ELIMANDS);
+	INICIALIZA(ELIMBACKWARD);
+	INICIALIZA(ELIMBOUNDMAX);
+	INICIALIZA(ELIMBOUNDMIN);
+	INICIALIZA(ELIMCLSLIM);
+	INICIALIZA(ELIMDEF);
+	INICIALIZA(ELIMDEFCORES);
+	INICIALIZA(ELIMDEFTICKS);
+	INICIALIZA(ELIMEFFORT);
+	INICIALIZA(ELIMEQUIVS);
+	INICIALIZA(ELIMINT);
+	INICIALIZA(ELIMITES);
+	INICIALIZA(ELIMLIMITED);
+	INICIALIZA(ELIMMAXEFF);
+	INICIALIZA(ELIMMINEFF);
+	INICIALIZA(ELIMOCCLIM);
+	INICIALIZA(ELIMPROD);
+	INICIALIZA(ELIMROUNDS);
+	INICIALIZA(ELIMSUBST);
+	INICIALIZA(ELIMSUM);
+	INICIALIZA(ELIMXORLIM);
+	INICIALIZA(ELIMXORS);
+	INICIALIZA(EMADECISIONS);
+	INICIALIZA(EMAGLUEFAST);
+	INICIALIZA(EMAGLUESLOW);
+	INICIALIZA(EMAJUMP);
+	INICIALIZA(EMALEVEL);
+	INICIALIZA(EMASIZE);
+	INICIALIZA(EMATRAILFAST);
+	INICIALIZA(EMATRAILSLOW);
+	INICIALIZA(EXTEAGERREASONS);
+	INICIALIZA(EXTEAGERRECALC);
+	INICIALIZA(EXTERNALLRAT);
+	INICIALIZA(FACTOR);
+	INICIALIZA(FACTORCANDROUNDS);
+	INICIALIZA(FACTORCHECK);
+	INICIALIZA(FACTORDELAY);
+	INICIALIZA(FACTOREFFORT);
+	INICIALIZA(FACTORINITICKS);
+	INICIALIZA(FACTORSIZE);
+	INICIALIZA(FACTORTHRESH);
+	INICIALIZA(FACTORUNBUMP);
+	INICIALIZA(FASTELIM);
+	INICIALIZA(FASTELIMBOUND);
+	INICIALIZA(FASTELIMCLSLIM);
+	INICIALIZA(FASTELIMOCCLIM);
+	INICIALIZA(FASTELIMROUNDS);
+	INICIALIZA(FLUSH);
+	INICIALIZA(FLUSHFACTOR);
+	INICIALIZA(FLUSHINT);
+	INICIALIZA(FORCEPHASE);
+	INICIALIZA(FRAT);
+	INICIALIZA(IDRUP);
+	INICIALIZA(ILB);
+	INICIALIZA(INCDECAY);
+	INICIALIZA(INCDECAYINT);
+	INICIALIZA(INPROBEINT);
+	INICIALIZA(INPROBING);
+	INICIALIZA(INPROCESSING);
+	INICIALIZA(INSTANTIATE);
+	INICIALIZA(INSTANTIATECLSLIM);
+	INICIALIZA(INSTANTIATEOCCLIM);
+	INICIALIZA(INSTANTIATEONCE);
+	INICIALIZA(LIDRUP);
+	INICIALIZA(LRAT);
+	INICIALIZA(LUCKY);
+	INICIALIZA(LUCKYASSUMPTIONS);
+	INICIALIZA(LUCKYEARLY);
+	INICIALIZA(LUCKYLATE);
+	INICIALIZA(MINIMIZE);
+	INICIALIZA(MINIMIZEDEPTH);
+	INICIALIZA(MINIMIZETICKS);
+	INICIALIZA(OTFS);
+	INICIALIZA(PHASE);
+	INICIALIZA(PREPROCESSINIT);
+	INICIALIZA(PREPROCESSLIGHT);
+	INICIALIZA(PROBE);
+	INICIALIZA(PROBEEFFORT);
+	INICIALIZA(PROBEHBR);
+	INICIALIZA(PROBETHRESH);
+	INICIALIZA(PROFILE);
+	INICIALIZA(QUIET);
+	INICIALIZA(RADIXSORTLIM);
+	INICIALIZA(RANDEC);
+	INICIALIZA(RANDECFOCUSED);
+	INICIALIZA(RANDECINIT);
+	INICIALIZA(RANDECINT);
+	INICIALIZA(RANDECLENGTH);
+	INICIALIZA(RANDECSTABLE);
+	INICIALIZA(REALTIME);
+	INICIALIZA(RECOMPUTETIER);
+	INICIALIZA(REDUCE);
+	INICIALIZA(REDUCEINIT);
+	INICIALIZA(REDUCEINT);
+	INICIALIZA(REDUCEOPT);
+	INICIALIZA(REDUCETARGET);
+	INICIALIZA(REDUCETIER1GLUE);
+	INICIALIZA(REDUCETIER2GLUE);
+	INICIALIZA(RELUCTANT);
+	INICIALIZA(RELUCTANTINT);
+	INICIALIZA(RELUCTANTMAX);
+	INICIALIZA(REPHASE);
+	INICIALIZA(REPHASEINT);
+	INICIALIZA(REPORT);
+	INICIALIZA(REPORTALL);
+	INICIALIZA(REPORTSOLVE);
+	INICIALIZA(RESTART);
+	INICIALIZA(RESTARTINT);
+	INICIALIZA(RESTARTMARGINFOCUSED);
+	INICIALIZA(RESTARTMARGINSTABLE);
+	INICIALIZA(RESTARTREUSETRAIL);
+	INICIALIZA(RESTOREALL);
+	INICIALIZA(RESTOREFLUSH);
+	INICIALIZA(REVERSE);
+	INICIALIZA(SCORE);
+	INICIALIZA(SCOREFACTOR);
+	INICIALIZA(SHRINK);
+	INICIALIZA(SHRINKREAP);
+	INICIALIZA(SHUFFLE);
+	INICIALIZA(SHUFFLEQUEUE);
+	INICIALIZA(SHUFFLERANDOM);
+	INICIALIZA(SHUFFLESCORES);
+	INICIALIZA(STABILIZE);
+	INICIALIZA(STABILIZEINIT);
+	INICIALIZA(STABILIZEONLY);
+	INICIALIZA(STATS);
+	INICIALIZA(STUBBORNIOFOCUSED);
+	INICIALIZA(SUBSUME);
+	INICIALIZA(SUBSUMEBINLIM);
+	INICIALIZA(SUBSUMECLSLIM);
+	INICIALIZA(SUBSUMEEFFORT);
+	INICIALIZA(SUBSUMELIMITED);
+	INICIALIZA(SUBSUMEMAXEFF);
+	INICIALIZA(SUBSUMEMINEFF);
+	INICIALIZA(SUBSUMEOCCLIM);
+	INICIALIZA(SUBSUMESTR);
+	INICIALIZA(SWEEP);
+	INICIALIZA(SWEEPCLAUSES);
+	INICIALIZA(SWEEPCOMPLETE);
+	INICIALIZA(SWEEPCOUNTBINARY);
+	INICIALIZA(SWEEPDEPTH);
+	INICIALIZA(SWEEPEFFORT);
+	INICIALIZA(SWEEPFLIPROUNDS);
+	INICIALIZA(SWEEPMAXCLAUSES);
+	INICIALIZA(SWEEPMAXDEPTH);
+	INICIALIZA(SWEEPMAXVARS);
+	INICIALIZA(SWEEPRAND);
+	INICIALIZA(SWEEPTHRESH);
+	INICIALIZA(SWEEPVARS);
+	INICIALIZA(TARGET);
+	INICIALIZA(TERMINATEINT);
+	INICIALIZA(TERNARY);
+	INICIALIZA(TERNARYEFFORT);
+	INICIALIZA(TERNARYMAXADD);
+	INICIALIZA(TERNARYOCCLIM);
+	INICIALIZA(TERNARYROUNDS);
+	INICIALIZA(TERNARYTHRESH);
+	INICIALIZA(TIER1LIMIT);
+	INICIALIZA(TIER1MINGLUE);
+	INICIALIZA(TIER2LIMIT);
+	INICIALIZA(TIER2MINGLUE);
+	INICIALIZA(TRANSRED);
+	INICIALIZA(TRANSREDEFFORT);
+	INICIALIZA(TRANSREDMAXEFF);
+	INICIALIZA(TRANSREDMINEFF);
+	INICIALIZA(VERBOSE);
+	INICIALIZA(VERIPB);
+	INICIALIZA(VIVIFY);
+	INICIALIZA(VIVIFYCALCTIER);
+	INICIALIZA(VIVIFYDEMOTE);
+	INICIALIZA(VIVIFYEFFORT);
+	INICIALIZA(VIVIFYFLUSH);
+	INICIALIZA(VIVIFYINST);
+	INICIALIZA(VIVIFYIRRED);
+	INICIALIZA(VIVIFYIRREDEFF);
+	INICIALIZA(VIVIFYONCE);
+	INICIALIZA(VIVIFYRETRY);
+	INICIALIZA(VIVIFYSCHEDMAX);
+	INICIALIZA(VIVIFYTHRESH);
+	INICIALIZA(VIVIFYTIER1);
+	INICIALIZA(VIVIFYTIER1EFF);
+	INICIALIZA(VIVIFYTIER2);
+	INICIALIZA(VIVIFYTIER2EFF);
+	INICIALIZA(VIVIFYTIER3);
+	INICIALIZA(VIVIFYTIER3EFF);
+	INICIALIZA(WALK);
+	INICIALIZA(WALKEFFORT);
+	INICIALIZA(WALKFULLOCC);
+	INICIALIZA(WALKMAXEFF);
+	INICIALIZA(WALKMINEFF);
+	INICIALIZA(WALKNONSTABLE);
+	INICIALIZA(WALKREDUNDANT);
+	INICIALIZA(WARMUP);
+
+#undef DEFINE_PARAM
+
+
 	// adding CaDiCaL main parameters
+
 	parametro += { "d", 0, 0, 1000000000, "limit the number of decisions (default unlimited)" };
 	parametro += { "L", 0, 0, 1000, "run local search initially (default '0' rounds)" };
 	parametro += { "P", 0, 0, 1000, "initial preprocessing (default '0' rounds)" };
@@ -328,6 +872,8 @@ void CCaDiCaL::ResetParametros()
 		defaultCadical[i] = parametro[i].valor;
 
 	indicador[IND_ITERACOES] = { "IND_CONFLICTS", "number of conflicts", IND_CONFLICTS };
+	IND_NUMCLAUSES = (IND_NUMVARS = (IND_MAXLEVEL = IND_FIXED = (IND_LEARNED =
+		(IND_RESTARTS = (IND_TICKS = (IND_PROPAGATIONS = (IND_MEMORY = indicador.Count()) + 1) + 1) + 1) + 1) + 1) + 1) + 1;
 	indicador += {
 		{ "IND_MEMORY", "maximum resident set size of process", IND_MEMORY },
 		{ "IND_PROPAGATIONS", "number of literals propagated, by unit propagation", IND_PROPAGATIONS },
@@ -376,7 +922,7 @@ int CCaDiCaL::ExecutaAlgoritmo()
 	if (Parametro(DEFINED_CONFIGURATIONS) != defaultCadical[DEFINED_CONFIGURATIONS])
 		options.printf("--%s ", *parametro[DEFINED_CONFIGURATIONS].nomeValores[Parametro(DEFINED_CONFIGURATIONS)]);
 	// add the rest of internal CaDiCaL parameters if used
-	for (int i = ARENA; i < PARAMETROS_CADICAL; i++)
+	for (int i = ARENA; i <= WARMUP; i++)
 		if (Parametro(i) != defaultCadical[i])
 			options.printf("--%s=%d ", *parametro[i].nome, Parametro(i));
 
@@ -1055,9 +1601,9 @@ TVector<TString> CCaDiCaL::GateITE(int gate, int decision, int valueTrue, int va
 		cnf += TString().printf("%d %d %d 0", -valueTrue, -valueFalse, gate); // -t -f x
 		cnf += TString().printf("%d %d %d 0", valueTrue, valueFalse, -gate); // t f -x
 	}
-	else if (valueFalse == 0 && valueTrue != 0) 
+	else if (valueFalse == 0 && valueTrue != 0)
 		cnf += TString().printf("%d %d 0", -valueTrue, gate); // -t x
-	else if (valueFalse != 0 && valueTrue == 0) 
+	else if (valueFalse != 0 && valueTrue == 0)
 		cnf += TString().printf("%d %d 0", valueFalse, -gate); // f -x
 	return cnf;
 }

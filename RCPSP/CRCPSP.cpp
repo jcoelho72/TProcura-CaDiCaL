@@ -6,22 +6,47 @@
 
 TVector<TVector<TSubNets>> CRCPSP::subNets;
 
-enum EParametrosRCPSP {
-	RES_METHOD = PARAMETROS_CADICAL,
-	MAX_VARS,
-	MAX_CLAUSES,
-	HORIZON, // time horizon to use in conversion to add to current LB 
-	BASE_LB,
-	LB_MODE,
-	BASE_PR,
-	PR_MODE,
-	HEADS_TAILS, // mode to calculate heads and tails
-	IND_MODE,
-	LOAD_FORMAT, // rcp or any sub-RCPSP problem implemented
-	SUB_INST_ID, // instance ID in case a file have more than one instance
-	CLEAN_RES,
-	RES_WASTE, // mode to optimize resources, adding resource wasted to activities
-};
+// Indicadores RCPSP
+int CRCPSP::IND_UB;
+int CRCPSP::IND_LB; // final LB
+int CRCPSP::IND_CALLS;
+int CRCPSP::IND_BASE_LB; // Base LBs - set initial LB
+int CRCPSP::IND_PR; // PRs - set initial UB
+int CRCPSP::IND_N;
+// project indicators
+int CRCPSP::IND_CNC;
+int CRCPSP::IND_OS;
+int CRCPSP::IND_SP;
+int CRCPSP::IND_AD;
+int CRCPSP::IND_LA;
+int CRCPSP::IND_I5;
+int CRCPSP::IND_TF;
+int CRCPSP::IND_WPREC;
+int CRCPSP::IND_WALL;
+int CRCPSP::IND_FS21;
+int CRCPSP::IND_FS22;
+int CRCPSP::IND_FS31;
+int CRCPSP::IND_FS32;
+int CRCPSP::IND_RF;
+int CRCPSP::IND_RU;
+int CRCPSP::IND_RS;
+int CRCPSP::IND_RC;
+
+// Parâmetros RCPSP
+int CRCPSP::RES_METHOD;
+int CRCPSP::MAX_VARS;
+int CRCPSP::MAX_CLAUSES;
+int CRCPSP::HORIZON; // time horizon to use in conversion to add to current LB 
+int CRCPSP::BASE_LB;
+int CRCPSP::LB_MODE;
+int CRCPSP::BASE_PR;
+int CRCPSP::PR_MODE;
+int CRCPSP::HEADS_TAILS; // mode to calculate heads and tails
+int CRCPSP::IND_MODE;
+int CRCPSP::LOAD_FORMAT; // rcp or any sub-RCPSP problem implemented
+int CRCPSP::SUB_INST_ID; // instance ID in case a file have more than one instance
+int CRCPSP::CLEAN_RES;
+int CRCPSP::RES_WASTE; // mode to optimize resources, adding resource wasted to activities
 
 
 void CRCPSP::ResetParametros()
@@ -32,6 +57,50 @@ void CRCPSP::ResetParametros()
 
 	if (ficheiroInstancia.Empty())
 		ficheiroInstancia = "Instancias/DC1/mv";
+
+	int id = parametro.Count();
+#define INICIALIZA(X) X = id++;
+	INICIALIZA(RES_METHOD);
+	INICIALIZA(RES_METHOD);
+	INICIALIZA(MAX_VARS);
+	INICIALIZA(MAX_CLAUSES);
+	INICIALIZA(HORIZON); 
+	INICIALIZA(BASE_LB);
+	INICIALIZA(LB_MODE);
+	INICIALIZA(BASE_PR);
+	INICIALIZA(PR_MODE);
+	INICIALIZA(HEADS_TAILS); 
+	INICIALIZA(IND_MODE);
+	INICIALIZA(LOAD_FORMAT); 
+	INICIALIZA(SUB_INST_ID); 
+	INICIALIZA(CLEAN_RES);
+	INICIALIZA(RES_WASTE); 
+	id = indicador.Count();
+	INICIALIZA(IND_UB);
+	INICIALIZA(IND_LB); 
+	INICIALIZA(IND_CALLS);
+	INICIALIZA(IND_BASE_LB); 
+	INICIALIZA(IND_PR); 
+	INICIALIZA(IND_N);
+	INICIALIZA(IND_CNC);
+	INICIALIZA(IND_OS);
+	INICIALIZA(IND_SP);
+	INICIALIZA(IND_AD);
+	INICIALIZA(IND_LA);
+	INICIALIZA(IND_I5);
+	INICIALIZA(IND_TF);
+	INICIALIZA(IND_WPREC);
+	INICIALIZA(IND_WALL);
+	INICIALIZA(IND_FS21);
+	INICIALIZA(IND_FS22);
+	INICIALIZA(IND_FS31);
+	INICIALIZA(IND_FS32);
+	INICIALIZA(IND_RF);
+	INICIALIZA(IND_RU);
+	INICIALIZA(IND_RS);
+	INICIALIZA(IND_RC);
+#undef DEFINE_PARAM
+
 
 	// adicionar o novo parâmetro para a conversão de N Damas para SAT
 	parametro += {
@@ -231,27 +300,53 @@ void CRCPSP::LoadRCPSP(TVector<TString> lines) {
 	// load capacity
 	for (auto& available : capacity)
 		available = nums.Pop();
-	// reset of precedence relations
+	// reset of precedence relations, resources, and activity ID
+	int i = 0;
 	for (auto& activity : act) {
+		activity.id = i++; // original activity id
+		activity.res.Count(R()); // resource usage
 		activity.pred = {};
 		activity.suc = {};
 	}
 	// load activities
-	int i = 0;
 	for (auto& activity : act) {
-		activity.id = i++; // original activity id
 		activity.pt = nums.Pop(); // processing time
-		activity.res.Count(R()); // resource usage
-		for (auto& res : activity.res)
-			res = nums.Pop(); // resource usage
+		for (int k = 0; k< R(); k++) {
+			activity.res[k] = nums.Pop(); // resource usage
+			if (activity.res[k] < 0 || activity.res[k]>capacity[k]) 
+				printf("\nLoadRCPSP: error, resource usage %d over capacity %d in activity %d.", 
+					activity.res[k], capacity[k], activity.id);
+		}
 		int numSucs = nums.Pop(); // number of successors
-		for (int s = 0; s < numSucs; s++)
+		for (int s = 0; s < numSucs; s++) {
 			activity.suc += nums.Pop() - 1; // successors (0-indexed)
+			if (activity.suc.Last() < 0 || activity.suc.Last() >= N(true))
+				printf("\nLoadRCPSP: error, sucessor %d does not exist.", activity.suc.Pop() + 1);
+		}
 	}
+
 	// setup pred based on suc
 	for (auto& activity : act)
 		for (auto& suc : activity.suc)
 			act[act[suc].id].pred += activity.id;
+
+	// correct missing dummy links from dummy start
+	for (auto& activity : act)
+		if (activity.id > 0 && activity.pred.Empty()) {
+			activity.pred.Add(0);
+			act.First().suc += activity.id;
+		}
+	// correct missing dummy links from dummy end
+	for (auto& activity : act)
+		if (activity.id <= N() && activity.suc.Empty()) {
+			activity.suc.Add(N() + 1);
+			act.Last().pred += activity.id;
+		}
+
+	// Dummy start/end have 0 PT and resources
+	act.Last().pt = act.First().pt = 0;
+	act.First().res.Reset(0);
+	act.Last().res.Reset(0);
 }
 
 
@@ -325,7 +420,7 @@ void CRCPSP::UpdateIndex() {
 void CRCPSP::ActivityOrder() {
 	TVector<int> weight, id;
 	TVector<TActivity> newOrder;
-	int j = 0;
+	int j = 0, maxID = act.Last().id+1;
 	if (act.Count() < 2)
 		return;
 	UpdateIndex();
@@ -361,6 +456,9 @@ void CRCPSP::ActivityOrder() {
 					activity.id, activity.pLevel);
 				for (auto suc : activity.suc)
 					printf("%d ", suc);
+				printf("pred: ");
+					for (auto pred : activity.pred)
+						printf("%d ", pred);
 			}
 
 
@@ -376,7 +474,7 @@ void CRCPSP::ActivityOrder() {
 			ActivityOrder();
 			return;
 		}
-		weight += activity.pLevel * N(true) + activity.id;
+		weight += activity.pLevel * maxID + activity.id;
 	}
 	// sort index
 	weight.Sort(&id);
@@ -439,9 +537,9 @@ void CRCPSP::InitialSetup() {
 		activity.predBits.Count((N(true) - 63) / 64).Reset(0);
 		activity.sucBits.Count((N(true) - 63) / 64).Reset(0);
 		// setup direct precedence relations, and progressive level
-		for (auto& pred : activity.pred)
+		for (auto& pred : activity.pred) 
 			activity.predBits.SetBit(Index(pred), true);
-		for (auto& suc : activity.suc)
+		for (auto& suc : activity.suc) 
 			activity.sucBits.SetBit(Index(suc, N(true) - 1), true);
 	}
 
@@ -455,7 +553,8 @@ void CRCPSP::InitialSetup() {
 
 	CleanResources();
 	// resource waste procedure
-	FeasibleSets(3, max);
+	if(Parametro(RES_WASTE) > 0)
+		FeasibleSets(3, max);
 
 	// initial calculations
 	ENivelDebug backupDebug = (ENivelDebug)Parametro(NIVEL_DEBUG);
@@ -1212,7 +1311,7 @@ void CRCPSP::Debug(bool completo) {
 	TVector<TString> lines;
 	lines += TString().printf("Instância: %s%d.rcp (%s%d %s%d)",
 		*ficheiroInstancia, instancia.valor, Icon(EIcon::LB), bestLB, Icon(EIcon::UB), bestUB);
-	lines += TString().printf(" ID%s  h↤PT↦t  %sPL%s", Icon(EIcon::ID), Icon(EIcon::TEMPO), Icon(EIcon::LIMITE));
+	lines += TString().printf(" ID%s h ↤PT↦ t %sPL%s", Icon(EIcon::ID), Icon(EIcon::TEMPO), Icon(EIcon::LIMITE));
 	for (int k = 0; k < R(); k++)
 		lines.Last() += Res2Str(capacity[k], k);
 	lines.Last().printf("Pred%sSuc", Icon(EIcon::ID));
@@ -1312,48 +1411,43 @@ int64_t CRCPSP::Indicador(int id) {
 
 	if (id >= IND_CNC && id <= IND_TF) {
 		MorphologicalIndicators(Parametro(IND_MODE) == 1);
-		switch (id) {
-		case IND_CNC:
+		if(id == IND_CNC)
 			return (int64_t)(indCNC * 1000 + 0.5);
-		case IND_OS:
+		if (id == IND_OS)
 			return (int64_t)(indOS * 1000 + 0.5);
-		case IND_SP:
+		if (id == IND_SP)
 			return (int64_t)(indSP * 1000 + 0.5);
-		case IND_AD:
+		if (id == IND_AD)
 			return	(int64_t)(indAD * 1000 + 0.5);
-		case IND_LA:
+		if (id == IND_LA)
 			return (int64_t)(indLA * 1000 + 0.5);
-		case IND_I5:
+		if (id == IND_I5)
 			return (int64_t)(indI5 * 1000 + 0.5);
-		case IND_TF:
+		if (id == IND_TF)
 			return (int64_t)(indTF * 1000 + 0.5);
-		}
 	}
 
-	switch (id) {
-	case IND_RF:
+	if (id == IND_RF)
 		return (int64_t)(1000 * RF() + 0.5);
-	case IND_RU:
+	if (id == IND_RU)
 		return (int64_t)(1000 * RU() + 0.5);
-	case IND_RS:
+	if (id == IND_RS)
 		return (int64_t)(1000 * RS() + 0.5);
-	case IND_RC:
+	if (id == IND_RC)
 		return (int64_t)(1000 * RC() + 0.5);
-	case IND_WPREC:
+	if (id == IND_WPREC)
 		return (int64_t)(1000 * W() + 0.5);
-	case IND_WALL:
+	if (id == IND_WALL)
 		return (int64_t)(1000 * W(false) + 0.5);
-	case IND_FS21:
+	if (id == IND_FS21)
 		return (int64_t)(1000 * FS(2, 1) + 0.5);
-	case IND_FS22:
+	if (id == IND_FS22)
 		return (int64_t)(1000 * FS(2, 2) + 0.5);
-	case IND_FS31:
+	if (id == IND_FS31)
 		return (int64_t)(1000 * FS(3, 1) + 0.5);
-	case IND_FS32:
+	if (id == IND_FS32)
 		return (int64_t)(1000 * FS(3, 2) + 0.5);
-	default:
-		return 0;
-	}
+	return 0;
 }
 
 void CRCPSP::MorphologicalIndicators(bool duration) {

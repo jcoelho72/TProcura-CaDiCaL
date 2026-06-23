@@ -20,33 +20,6 @@ typedef struct SActivity {
 typedef struct { int pred, suc; } TPredecessor;
 typedef struct { TBits activities; int bestLB; } TSubNets;
 
-enum EIndicadoresRCPSP {
-	IND_UB = IND_CADICAL, // final UB
-	IND_LB, // final LB
-	IND_CALLS,
-	IND_BASE_LB, // Base LBs - set initial LB
-	IND_PR, // PRs - set initial UB
-	IND_N,
-	// project indicators
-	IND_CNC,
-	IND_OS,
-	IND_SP,
-	IND_AD,
-	IND_LA,
-	IND_I5,
-	IND_TF,
-	IND_WPREC,
-	IND_WALL,
-	IND_FS21,
-	IND_FS22,
-	IND_FS31,
-	IND_FS32,
-	IND_RF,
-	IND_RU,
-	IND_RS,
-	IND_RC
-};
-
 
 /**
  * @class CRCPSP
@@ -276,4 +249,48 @@ private:
 	}
 
 	void Debug(TSubNets& subNet, int id, int prevBound, bool reused = false);
+
+	// Indicadores RCPSP
+	static int IND_UB;
+	static int IND_LB; // final LB
+	static int IND_CALLS;
+	static int IND_BASE_LB; // Base LBs - set initial LB
+	static int IND_PR; // PRs - set initial UB
+	static int IND_N;
+	// project indicators
+	static int IND_CNC;
+	static int IND_OS;
+	static int IND_SP;
+	static int IND_AD;
+	static int IND_LA;
+	static int IND_I5;
+	static int IND_TF;
+	static int IND_WPREC;
+	static int IND_WALL;
+	static int IND_FS21;
+	static int IND_FS22;
+	static int IND_FS31;
+	static int IND_FS32;
+	static int IND_RF;
+	static int IND_RU;
+	static int IND_RS;
+	static int IND_RC;
+
+	// Parâmetros RCPSP
+	static int RES_METHOD;
+	static int MAX_VARS;
+	static int MAX_CLAUSES;
+	static int HORIZON; // time horizon to use in conversion to add to current LB 
+	static int BASE_LB;
+	static int LB_MODE;
+	static int BASE_PR;
+	static int PR_MODE;
+	static int HEADS_TAILS; // mode to calculate heads and tails
+	static int IND_MODE;
+	static int LOAD_FORMAT; // rcp or any sub-RCPSP problem implemented
+	static int SUB_INST_ID; // instance ID in case a file have more than one instance
+	static int CLEAN_RES;
+	static int RES_WASTE; // mode to optimize resources, adding resource wasted to activities
+
+
 };
